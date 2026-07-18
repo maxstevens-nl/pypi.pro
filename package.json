@@ -1,0 +1,22 @@
+{
+  "name": "pypi-search",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "sst dev",
+    "build": "sst build",
+    "deploy": "sst deploy",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "sst": "^4.17.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260718.1",
+    "@types/bun": "^1.3.14",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "wrangler": "^4.112.0"
+  }
+}
