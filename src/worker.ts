@@ -1,6 +1,5 @@
 import { Resource } from "sst";
-
-export { SearchIndex } from "./search-index";
+import { search, ingest, health } from "./search";
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -22,11 +21,13 @@ export default {
       let response: Response;
 
       if (url.pathname === "/api/search") {
-        response = await handleSearch(req, env, ctx, url, requestId);
+        response = await handleSearch(req, env, url, requestId);
       } else if (url.pathname === "/ingest" && req.method === "POST") {
         response = await handleIngest(req, env, requestId);
       } else if (url.pathname === "/bootstrap" && req.method === "POST") {
         response = await handleBootstrap(req, env, requestId);
+      } else if (url.pathname === "/health") {
+        response = await handleHealth(env);
       } else if (env.ASSETS) {
         response = await env.ASSETS.fetch(req);
       } else {
@@ -59,17 +60,15 @@ export default {
 async function handleSearch(
   req: Request,
   env: Env,
-  ctx: ExecutionContext,
   url: URL,
   requestId: string
 ): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   if (!q) return json({ hits: [] });
 
-  const stub = env.SEARCH_INDEX.getByName("pypi");
-  const res = await stub.fetch(`https://do.local/search?q=${encodeURIComponent(q)}`);
+  const result = await search(env.DB, q);
 
-  return new Response(res.body, {
+  return new Response(JSON.stringify(result), {
     headers: {
       "content-type": "application/json",
       "access-control-allow-origin": "*",
@@ -89,21 +88,16 @@ async function handleIngest(req: Request, env: Env, requestId: string): Promise<
     recordCount: count,
   }));
 
-  const stub = env.SEARCH_INDEX.getByName("pypi");
-  const res = await stub.fetch("https://do.local/ingest", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body,
-  });
+  const result = await ingest(env.DB, records.records || []);
 
   console.log(JSON.stringify({
     level: "info",
     requestId,
     event: "ingest_complete",
-    status: res.status,
+    count: result.count,
   }));
 
-  return res;
+  return json(result);
 }
 
 async function handleBootstrap(req: Request, env: Env, requestId: string): Promise<Response> {
@@ -141,23 +135,21 @@ async function handleBootstrap(req: Request, env: Env, requestId: string): Promi
 
     log(`Parsed ${records.length} records from R2`);
 
-    const stub = env.SEARCH_INDEX.getByName("pypi");
-    const res = await stub.fetch("https://do.local/ingest", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ records }),
-    });
+    const result = await ingest(env.DB, records);
+    log(`bootstrap_complete: ${JSON.stringify(result)}`);
 
-    const data = await res.json();
-    log(`bootstrap_complete: ${JSON.stringify(data)}`);
-
-    return res;
+    return json(result);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : "";
     log(`bootstrap_error: ${errorMsg}`);
     return new Response(`bootstrap failed: ${errorMsg}\n\nLogs:\n${logs.join("\n")}`, { status: 500 });
   }
+}
+
+async function handleHealth(env: Env): Promise<Response> {
+  const result = await health(env.DB);
+  return json(result);
 }
 
 const json = (o: unknown) =>

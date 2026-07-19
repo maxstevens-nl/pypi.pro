@@ -1,13 +1,15 @@
+import { ingest } from "./search";
+
 export default {
   async queue(batch: MessageBatch, env: Env) {
-    const stub = env.SEARCH_INDEX.getByName("pypi");
     for (const msg of batch.messages) {
-      await stub.fetch("https://do.local/ingest", {
-        method: "POST",
-        body: JSON.stringify({ records: msg.body }),
-        headers: { "content-type": "application/json" },
-      });
-      msg.ack();
+      try {
+        await ingest(env.DB, msg.body);
+        msg.ack();
+      } catch (error) {
+        console.error("Failed to ingest message:", error);
+        msg.retry();
+      }
     }
   },
 };
