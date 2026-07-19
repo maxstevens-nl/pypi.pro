@@ -1,65 +1,73 @@
 # AGENTS.md
 
-## SST Dev Requirements
-
-For `bun run dev` (which runs `sst dev`) to work with the `pypi.pro` domain:
-
-1. **Cloudflare Authentication**: Set `CLOUDFLARE_API_TOKEN` environment variable, or SST will prompt for interactive login on first run
-2. **Domain in Cloudflare**: `pypi.pro` must be added to your Cloudflare account
-3. **DNS Access**: You must have DNS control over `pypi.pro` to point it to Cloudflare
-4. **SST State**: First run will create `.sst/` directory for state management
-
-The dev server will attempt to provision the domain and create DNS records automatically.
-
 ## Commands
 
 ```bash
-sst dev    # local Cloudflare simulation
-sst deploy # deploy to Cloudflare
+bun test                          # tests (test/query.test.ts)
+sst dev                           # local Cloudflare simulation (via `bun run dev`)
+sst deploy                        # deploy to Cloudflare (via `bun run deploy`)
+sst build                         # build SST app (note: NOT the frontend build)
+
+# Frontend (separate package, must be built before SST serves new assets)
+( cd packages/web && bun run build )   # vite build → packages/web/dist
+
+# Snapshot generation → snapshot.ndjson (top PyPI packages by 30-day downloads)
+bun scripts/build-snapshot.ts
 ```
 
-Uses D1, Workers, R2, Queues. Infrastructure defined in `sst.config.ts`.
+No `lint` or `typecheck` scripts are configured; `bun test` is the only verification. To typecheck manually: `bunx tsc --noEmit`.
 
-```bash
-bun test                          # run tests (query.ts unit tests)
-bun run build                     # build frontend (packages/web)
-bun scripts/build-snapshot.ts     # fetch top 15K PyPI packages → snapshot.ndjson
-```
+## SST dev requirements
 
-## Database Setup
+`sst dev` provisions `pypi.pro` on Cloudflare. Prerequisites:
 
-Database is D1 (Cloudflare's SQLite). Schema is in `schema.sql`. Tables: `packages`, `pkg_prefix` (FTS), `pkg_trigram` (FTS).
+1. `CLOUDFLARE_API_TOKEN` env var set, or SST prompts for interactive login on first run
+2. `pypi.pro` added to your Cloudflare account with DNS control
+3. First run creates `.sst/` state dir
 
-To initialize the D1 database schema:
+## D1 database
+
+D1 (Cloudflare SQLite). Binding name in `sst.config.ts`: `pypi-search-db` (resource `SearchDB`). Schema in `schema.sql`:
+
+- `packages` — main table, ranked by `downloads_4w DESC`
+- `pkg_prefix` — FTS5 external-content table, `prefix='2 3 4'`
+- `pkg_trigram` — FTS5 trigram table for fuzzy fallback
+
+Initialize / reset schema:
+
 ```bash
 bunx wrangler d1 execute pypi-search-db --file=schema.sql
 ```
 
+FTS tables are external-content (`content='packages'`); there are no triggers. Inserts into `packages` must be followed by explicit FTS sync calls (see `ingest` in `src/search.ts`).
+
 ## Architecture
 
-- **Search ranking**: Ordered by `downloads_4w DESC`
-- **Exact matches**: Always promoted to position 0 regardless of score
-- **Data source**: Top 15K packages by 30-day downloads from hugovk/top-pypi-packages
-- **FTS sync**: Manual FTS updates after package inserts (no triggers)
+Infrastructure: D1 + Workers + R2 (`Snapshots` bucket) + Queue (`Ingest`). All wired in `sst.config.ts`.
 
-## Project Structure
+Worker entry `src/worker.ts` routes:
 
-```
-src/
-  worker.ts         # Cloudflare Worker entry
-  search.ts         # Search and ingest logic using D1
-  query.ts          # FTS term sanitizer + query builder
-  types.ts          # PackageRecord interface
-  consumer.ts       # Queue consumer
-  cron.ts           # Scheduled jobs
+- `GET  /api/search?q=` — search
+- `POST /ingest`        — insert records (queue consumer path is `src/consumer.ts`)
+- `POST /bootstrap`    — pull `snapshot.ndjson` from R2 `Snapshots` bucket → `ingest` into D1
+- `GET  /health`
 
-schema.sql          # D1 database schema
-packages/web/       # Vite frontend (vanilla TS)
-scripts/            # Data ingestion scripts
-```
+Crons (`src/cron.ts`, selected by `MODE` env):
 
-## Key Quirks
+- `0 3 * * *`   daily metadata sync from PyPI RSS updates
+- `0 4 * * 1`   weekly downloads sync (currently a placeholder in `syncDownloads`)
 
-- Frontend must be rebuilt after changes: `bun run build` in `packages/web/`
-- No typecheck/lint commands configured; tests are the only verification
-- D1 database must be initialized with schema.sql before first use
+Search behavior (`src/search.ts`):
+
+- FTS5 prefix match first; if <5 hits and query length ≥3, falls back to trigram
+- Exact name match always promoted to position 0
+- Results capped at 20, ordered by `downloads_4w DESC`
+
+Data source for snapshots: `hugovk/top-pypi-packages` 30-day JSON, enriched via per-package `pypi.org/pypi/<name>/json`.
+
+## Quirks
+
+- `packages/web/dist` is the static assets dir, but `sst.config.ts` references it via an absolute path (`/root/pypipro/packages/web/dist`) — this is the Cloudflare build environment path, not local. Don't "fix" it to a relative path without testing `sst deploy`.
+- Worker uses `compatibility date 2026-06-01` with `nodejs_compat` flag.
+- `pypi.db` at repo root is gitignored local scratch (Miniflare/D1 local), not committed.
+- Frontend is vanilla TS + Vite (no framework). Rebuild `packages/web` before deploying to pick up UI changes.
