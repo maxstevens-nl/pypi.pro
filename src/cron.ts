@@ -2,7 +2,7 @@ import type { PackageRecord } from "./types";
 
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
-    const mode = (env as any).MODE ?? "metadata";
+    const mode = env.MODE ?? "metadata";
 
     if (mode === "downloads") {
       await syncDownloads(env);
