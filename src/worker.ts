@@ -1,8 +1,9 @@
 import { Resource } from "sst";
 import { search, ingest, health } from "./search";
+import { getDb } from "./db";
 
 export default {
-  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
     const url = new URL(req.url);
@@ -20,14 +21,16 @@ export default {
     try {
       let response: Response;
 
+      const db = getDb(env);
+
       if (url.pathname === "/api/search") {
-        response = await handleSearch(req, env, url, requestId);
+        response = await handleSearch(db, url);
       } else if (url.pathname === "/ingest" && req.method === "POST") {
-        response = await handleIngest(req, env, requestId);
+        response = await handleIngest(req, db, requestId);
       } else if (url.pathname === "/bootstrap" && req.method === "POST") {
-        response = await handleBootstrap(req, env, requestId);
+        response = await handleBootstrap(req, db, requestId);
       } else if (url.pathname === "/health") {
-        response = await handleHealth(env);
+        response = await handleHealth(db);
       } else if (env.ASSETS) {
         response = await env.ASSETS.fetch(req);
       } else {
@@ -57,16 +60,11 @@ export default {
   },
 };
 
-async function handleSearch(
-  req: Request,
-  env: Env,
-  url: URL,
-  requestId: string
-): Promise<Response> {
+async function handleSearch(db: import("./db").Db, url: URL): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   if (!q) return json({ hits: [] });
 
-  const result = await search(env.DB, q);
+  const result = await search(db, q);
 
   return new Response(JSON.stringify(result), {
     headers: {
@@ -76,7 +74,7 @@ async function handleSearch(
   });
 }
 
-async function handleIngest(req: Request, env: Env, requestId: string): Promise<Response> {
+async function handleIngest(req: Request, db: import("./db").Db, requestId: string): Promise<Response> {
   const body = await req.text();
   const records = JSON.parse(body);
   const count = records.records?.length ?? 0;
@@ -88,7 +86,7 @@ async function handleIngest(req: Request, env: Env, requestId: string): Promise<
     recordCount: count,
   }));
 
-  const result = await ingest(env.DB, records.records || []);
+  const result = await ingest(db, records.records || []);
 
   console.log(JSON.stringify({
     level: "info",
@@ -100,7 +98,7 @@ async function handleIngest(req: Request, env: Env, requestId: string): Promise<
   return json(result);
 }
 
-async function handleBootstrap(req: Request, env: Env, requestId: string): Promise<Response> {
+async function handleBootstrap(_req: Request, db: import("./db").Db, requestId: string): Promise<Response> {
   const logs: string[] = [];
   const log = (msg: string) => {
     logs.push(msg);
@@ -118,13 +116,13 @@ async function handleBootstrap(req: Request, env: Env, requestId: string): Promi
 
     const object = await Resource.Snapshots.get("snapshot.ndjson");
     log(`Got object from R2: ${!!object}`);
-    
+
     if (!object) {
       return new Response("snapshot not found", { status: 404 });
     }
 
     const body = await object.text();
-    const lines = body.split("\n").filter(l => l.trim());
+    const lines = body.split("\n").filter((l: string) => l.trim());
     const records = [];
 
     for (const line of lines) {
@@ -135,20 +133,19 @@ async function handleBootstrap(req: Request, env: Env, requestId: string): Promi
 
     log(`Parsed ${records.length} records from R2`);
 
-    const result = await ingest(env.DB, records);
+    const result = await ingest(db, records);
     log(`bootstrap_complete: ${JSON.stringify(result)}`);
 
     return json(result);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : "";
     log(`bootstrap_error: ${errorMsg}`);
     return new Response(`bootstrap failed: ${errorMsg}\n\nLogs:\n${logs.join("\n")}`, { status: 500 });
   }
 }
 
-async function handleHealth(env: Env): Promise<Response> {
-  const result = await health(env.DB);
+async function handleHealth(db: import("./db").Db): Promise<Response> {
+  const result = await health(db);
   return json(result);
 }
 

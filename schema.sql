@@ -1,4 +1,8 @@
--- D1 schema for PyPI search
+-- Neon Postgres schema for PyPI search
+-- Run against the Neon database referenced by DATABASE_URL in .env, e.g.:
+--   psql "$DATABASE_URL" -f schema.sql
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS packages (
   name           TEXT PRIMARY KEY,
@@ -6,25 +10,13 @@ CREATE TABLE IF NOT EXISTS packages (
   summary        TEXT,
   version        TEXT,
   home_page      TEXT,
-  updated_at     INTEGER,
+  updated_at     BIGINT,
   downloads_1w   INTEGER DEFAULT 0,
   downloads_4w   INTEGER DEFAULT 0,
   trend          REAL   DEFAULT 0,
-  downloads_52w  BLOB
+  downloads_52w  INTEGER[]
 );
 
-CREATE VIRTUAL TABLE IF NOT EXISTS pkg_prefix USING fts5(
-  name, summary,
-  content='packages', content_rowid='rowid',
-  prefix='2 3 4'
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS pkg_trigram USING fts5(
-  name, summary,
-  content='packages', content_rowid='rowid',
-  tokenize='trigram'
-);
-
--- Index for exact match lookups
-CREATE INDEX IF NOT EXISTS idx_packages_name ON packages(name);
+-- Trigram index powers both prefix LIKE 'q%' and fuzzy % similarity searches.
+CREATE INDEX IF NOT EXISTS idx_packages_name_trgm ON packages USING gin (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_packages_downloads ON packages(downloads_4w DESC);

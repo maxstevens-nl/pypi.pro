@@ -8,15 +8,17 @@ export default $config({
     const snapshots = new sst.cloudflare.Bucket("Snapshots");
     const ingest = new sst.cloudflare.Queue("Ingest");
 
-    const db = new sst.cloudflare.D1("SearchDB", {
-      name: "pypi-search-db",
-    });
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is not set. Add a Neon postgres connection string to .env");
+    }
 
     const worker = new sst.cloudflare.Worker("Search", {
       handler: "src/worker.ts",
       url: true,
       domain: "pypi.pro",
-      link: [snapshots, ingest, db],
+      link: [snapshots, ingest],
+      environment: { DATABASE_URL: databaseUrl },
       compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
       transform: {
         worker: (args) => {
@@ -28,15 +30,23 @@ export default $config({
       },
     });
 
-    ingest.subscribe({ handler: "src/consumer.ts", link: [worker, db] });
+    ingest.subscribe({
+      handler: "src/consumer.ts",
+      link: [worker],
+      environment: { DATABASE_URL: databaseUrl },
+    });
 
     new sst.cloudflare.Cron("Sync", {
-      job: { handler: "src/cron.ts", link: [ingest, snapshots, db] },
+      job: { handler: "src/cron.ts", link: [ingest, snapshots], environment: { DATABASE_URL: databaseUrl } },
       schedules: ["0 3 * * *"],
     });
 
     new sst.cloudflare.Cron("Downloads", {
-      job: { handler: "src/cron.ts", link: [ingest, snapshots, db], environment: { MODE: "downloads" } },
+      job: {
+        handler: "src/cron.ts",
+        link: [ingest, snapshots],
+        environment: { MODE: "downloads", DATABASE_URL: databaseUrl },
+      },
       schedules: ["0 4 * * 1"],
     });
 

@@ -1,7 +1,7 @@
 import type { PackageRecord } from "./types";
 
 export default {
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
     const mode = (env as any).MODE ?? "metadata";
 
     if (mode === "downloads") {
@@ -25,7 +25,7 @@ async function syncMetadata(env: Env) {
   const records: PackageRecord[] = [];
   for (const name of names) {
     try {
-      const meta = await fetch(`https://pypi.org/pypi/${name}/json`).then(r => r.json());
+      const meta = await fetch(`https://pypi.org/pypi/${name}/json`).then(r => r.json() as Promise<{ info: Record<string, string> }>);
       const info = meta.info ?? {};
       records.push({
         name: normalizeName(name),
@@ -43,7 +43,7 @@ async function syncMetadata(env: Env) {
   }
 }
 
-async function syncDownloads(env: Env) {
+async function syncDownloads(_env: Env) {
   // BigQuery downloads sync would go here
   // For now, this is a placeholder for the weekly downloads refresh
 }

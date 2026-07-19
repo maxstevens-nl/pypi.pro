@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error" },
+  "rules": {
+    "typescript/triple-slash-reference": "off"
+  },
+  "ignorePatterns": [
+    "node_modules",
+    ".sst",
+    ".wrangler",
+    "dist",
+    "packages/web/dist",
+    "packages/web/sst-env.d.ts",
+    "package-lock.json",
+    "bun.lock"
+  ]
+}
