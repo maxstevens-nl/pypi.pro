@@ -1,5 +1,5 @@
 {
-  "name": "pypi-search-web",
+  "name": "pipy.pro/web",
   "private": true,
   "type": "module",
   "scripts": {

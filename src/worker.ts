@@ -1,9 +1,10 @@
+import { search } from "./search";
+import { getNeonHttpDb, drizzleNodePg, type Db } from "./db";
 import { Resource } from "sst";
-import { search, ingest, health } from "./search";
-import { getDb } from "./db";
+import { Client } from "pg";
 
 export default {
-  async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
     const url = new URL(req.url);
@@ -21,16 +22,8 @@ export default {
     try {
       let response: Response;
 
-      const db = getDb(env);
-
       if (url.pathname === "/api/search") {
-        response = await handleSearch(db, url);
-      } else if (url.pathname === "/ingest" && req.method === "POST") {
-        response = await handleIngest(req, db, requestId);
-      } else if (url.pathname === "/bootstrap" && req.method === "POST") {
-        response = await handleBootstrap(req, db, requestId);
-      } else if (url.pathname === "/health") {
-        response = await handleHealth(db);
+        response = await handleSearch(env, ctx, url);
       } else if (env.ASSETS) {
         response = await env.ASSETS.fetch(req);
       } else {
@@ -52,6 +45,9 @@ export default {
         level: "error",
         requestId,
         error: error instanceof Error ? error.message : String(error),
+        cause: error instanceof Error && error.cause instanceof Error
+          ? error.cause.message
+          : undefined,
         stack: error instanceof Error ? error.stack : undefined,
         duration,
       }));
@@ -60,93 +56,39 @@ export default {
   },
 };
 
-async function handleSearch(db: import("./db").Db, url: URL): Promise<Response> {
+async function handleSearch(
+  env: Env,
+  ctx: ExecutionContext,
+  url: URL,
+): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   if (!q) return json({ hits: [] });
 
-  const result = await search(db, q);
+  let db: Db;
+  let cleanup: (() => Promise<void>) | null = null;
 
-  return new Response(JSON.stringify(result), {
-    headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-    },
-  });
-}
-
-async function handleIngest(req: Request, db: import("./db").Db, requestId: string): Promise<Response> {
-  const body = await req.text();
-  const records = JSON.parse(body);
-  const count = records.records?.length ?? 0;
-
-  console.log(JSON.stringify({
-    level: "info",
-    requestId,
-    event: "ingest_start",
-    recordCount: count,
-  }));
-
-  const result = await ingest(db, records.records || []);
-
-  console.log(JSON.stringify({
-    level: "info",
-    requestId,
-    event: "ingest_complete",
-    count: result.count,
-  }));
-
-  return json(result);
-}
-
-async function handleBootstrap(_req: Request, db: import("./db").Db, requestId: string): Promise<Response> {
-  const logs: string[] = [];
-  const log = (msg: string) => {
-    logs.push(msg);
-    console.log(JSON.stringify({ level: "info", requestId, msg }));
-  };
+  if (Resource.Database) {
+    const client = new Client({
+      connectionString: Resource.Database.connectionString,
+    });
+    await client.connect();
+    db = drizzleNodePg(client, { schema: await import("./schema") });
+    cleanup = () => client.end();
+  } else {
+    db = getNeonHttpDb(env);
+  }
 
   try {
-    log("bootstrap_start");
-    log(`Resource.Snapshots exists: ${!!Resource.Snapshots}`);
-    log(`Resource keys: ${Object.keys(Resource).join(", ")}`);
-
-    if (!Resource.Snapshots) {
-      return new Response(`Resource.Snapshots is undefined. Available: ${Object.keys(Resource).join(", ")}`, { status: 500 });
-    }
-
-    const object = await Resource.Snapshots.get("snapshot.ndjson");
-    log(`Got object from R2: ${!!object}`);
-
-    if (!object) {
-      return new Response("snapshot not found", { status: 404 });
-    }
-
-    const body = await object.text();
-    const lines = body.split("\n").filter((l: string) => l.trim());
-    const records = [];
-
-    for (const line of lines) {
-      try {
-        records.push(JSON.parse(line));
-      } catch {}
-    }
-
-    log(`Parsed ${records.length} records from R2`);
-
-    const result = await ingest(db, records);
-    log(`bootstrap_complete: ${JSON.stringify(result)}`);
-
-    return json(result);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    log(`bootstrap_error: ${errorMsg}`);
-    return new Response(`bootstrap failed: ${errorMsg}\n\nLogs:\n${logs.join("\n")}`, { status: 500 });
+    const result = await search(db, q);
+    return new Response(JSON.stringify(result), {
+      headers: {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*",
+      },
+    });
+  } finally {
+    if (cleanup) ctx.waitUntil(cleanup());
   }
-}
-
-async function handleHealth(db: import("./db").Db): Promise<Response> {
-  const result = await health(db);
-  return json(result);
 }
 
 const json = (o: unknown) =>

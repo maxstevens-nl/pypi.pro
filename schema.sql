@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS packages (
   version        TEXT,
   home_page      TEXT,
   updated_at     BIGINT,
-  downloads_1w   INTEGER DEFAULT 0,
-  downloads_4w   INTEGER DEFAULT 0,
+  downloads_1w   BIGINT DEFAULT 0,
+  downloads_4w   BIGINT DEFAULT 0,
   trend          REAL   DEFAULT 0,
   downloads_52w  INTEGER[]
 );

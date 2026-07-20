@@ -1,23 +1,28 @@
 {
-  "name": "pypi-search",
+  "name": "pypi.pro",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "sst dev",
+    "dev": "sst dev --stage dev",
+    "dev:api": "wrangler dev --config wrangler.dev.toml --local --port 8787",
     "build": "sst build",
-    "deploy": "sst deploy",
+    "deploy": "sst deploy --stage prod",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "db:seed": "bun scripts/seed-local.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.16.3",
     "sst": "^4.17.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260718.1",
     "@types/bun": "^1.3.14",
+    "@types/pg": "^8.15.0",
     "oxlint": "^1.74.0",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",

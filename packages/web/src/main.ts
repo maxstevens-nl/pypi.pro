@@ -13,7 +13,8 @@ input.addEventListener("input", () => {
       list.innerHTML = "";
       return;
     }
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const base = import.meta.env.VITE_API_URL ?? "";
+    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);
     const { hits } = await res.json();
     renderResults(hits);
   }, 80);

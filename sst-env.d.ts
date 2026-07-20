@@ -6,11 +6,10 @@
 
 declare module "sst" {
   export interface Resource {
-    "DownloadsHandler": import("@cloudflare/workers-types").Service
-    "Ingest": import("@cloudflare/workers-types").Queue
-    "Search": import("@cloudflare/workers-types").Service
-    "Snapshots": import("@cloudflare/workers-types").R2Bucket
-    "SyncHandler": import("@cloudflare/workers-types").Service
+    "Web": {
+      "type": "sst.cloudflare.StaticSite"
+      "url": string
+    }
   }
 }
 
