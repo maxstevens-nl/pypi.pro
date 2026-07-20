@@ -44,8 +44,10 @@ function updateSelection(items: NodeListOf<HTMLLIElement>) {
 }
 
 function renderResults(hits: any[]) {
-  list.innerHTML = hits.map((h: any) =>
-    `<li>
+  list.innerHTML = hits
+    .map(
+      (h: any) =>
+        `<li>
       <a href="https://pypi.org/project/${escapeHtml(h.name)}/">
         <strong>${escapeHtml(h.display_name)}</strong>
         <div class="meta">
@@ -53,8 +55,9 @@ function renderResults(hits: any[]) {
           <span class="downloads">${formatDownloads(h.downloads_4w ?? 0)}</span>
         </div>
       </a>
-    </li>`
-  ).join("");
+    </li>`,
+    )
+    .join("");
 }
 
 function formatDownloads(count: number): string {

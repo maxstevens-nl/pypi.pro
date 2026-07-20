@@ -9,15 +9,17 @@ export default {
     const requestId = crypto.randomUUID();
     const url = new URL(req.url);
 
-    console.log(JSON.stringify({
-      level: "info",
-      requestId,
-      method: req.method,
-      path: url.pathname,
-      query: url.search,
-      cfRay: req.headers.get("cf-ray"),
-      country: req.headers.get("cf-ipcountry"),
-    }));
+    console.log(
+      JSON.stringify({
+        level: "info",
+        requestId,
+        method: req.method,
+        path: url.pathname,
+        query: url.search,
+        cfRay: req.headers.get("cf-ray"),
+        country: req.headers.get("cf-ipcountry"),
+      }),
+    );
 
     try {
       let response: Response;
@@ -31,36 +33,37 @@ export default {
       }
 
       const duration = Date.now() - startTime;
-      console.log(JSON.stringify({
-        level: "info",
-        requestId,
-        status: response.status,
-        duration,
-      }));
+      console.log(
+        JSON.stringify({
+          level: "info",
+          requestId,
+          status: response.status,
+          duration,
+        }),
+      );
 
       return response;
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.log(JSON.stringify({
-        level: "error",
-        requestId,
-        error: error instanceof Error ? error.message : String(error),
-        cause: error instanceof Error && error.cause instanceof Error
-          ? error.cause.message
-          : undefined,
-        stack: error instanceof Error ? error.stack : undefined,
-        duration,
-      }));
+      console.log(
+        JSON.stringify({
+          level: "error",
+          requestId,
+          error: error instanceof Error ? error.message : String(error),
+          cause:
+            error instanceof Error && error.cause instanceof Error
+              ? error.cause.message
+              : undefined,
+          stack: error instanceof Error ? error.stack : undefined,
+          duration,
+        }),
+      );
       return new Response("internal error", { status: 500 });
     }
   },
 };
 
-async function handleSearch(
-  env: Env,
-  ctx: ExecutionContext,
-  url: URL,
-): Promise<Response> {
+async function handleSearch(env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   if (!q) return json({ hits: [] });
 

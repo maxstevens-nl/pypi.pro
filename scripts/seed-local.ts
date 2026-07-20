@@ -18,9 +18,13 @@ async function main() {
     process.exit(1);
   }
 
-  const count = spawnSync("psql", [DATABASE_URL, "-t", "-A", "-c", "SELECT count(*) FROM packages"], {
-    encoding: "utf8",
-  });
+  const count = spawnSync(
+    "psql",
+    [DATABASE_URL, "-t", "-A", "-c", "SELECT count(*) FROM packages"],
+    {
+      encoding: "utf8",
+    },
+  );
   if (count.status === 0 && parseInt((count.stdout ?? "").trim(), 10) > 0) {
     console.log(`Seed skipped: packages table already has ${count.stdout.trim()} rows.`);
     return;
@@ -40,7 +44,9 @@ async function main() {
     }
   }
   if (records.length === 0) {
-    console.error(`No records found in ${SNAPSHOT_PATH}. Run \`bun scripts/build-snapshot.ts\` first.`);
+    console.error(
+      `No records found in ${SNAPSHOT_PATH}. Run \`bun scripts/build-snapshot.ts\` first.`,
+    );
     process.exit(1);
   }
 

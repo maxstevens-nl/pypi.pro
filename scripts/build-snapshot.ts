@@ -3,8 +3,10 @@ import type { PackageRecord } from "../src/types";
 async function main() {
   console.log("Fetching top PyPI packages by downloads...");
 
-  const res = await fetch("https://raw.githubusercontent.com/hugovk/top-pypi-packages/main/top-pypi-packages-30-days.min.json");
-  const data = await res.json() as { rows: { project: string; download_count: number }[] };
+  const res = await fetch(
+    "https://raw.githubusercontent.com/hugovk/top-pypi-packages/main/top-pypi-packages-30-days.min.json",
+  );
+  const data = (await res.json()) as { rows: { project: string; download_count: number }[] };
   console.log(`Found ${data.rows.length} packages`);
 
   const records: PackageRecord[] = [];
@@ -15,7 +17,9 @@ async function main() {
     const results = await Promise.allSettled(
       batch.map(async (item): Promise<PackageRecord | null> => {
         try {
-          const meta = await fetch(`https://pypi.org/pypi/${item.project}/json`).then(r => r.json());
+          const meta = await fetch(`https://pypi.org/pypi/${item.project}/json`).then((r) =>
+            r.json(),
+          );
           const info = meta.info ?? {};
           if (!info.version) return null;
           return {
@@ -32,7 +36,7 @@ async function main() {
         } catch {
           return null;
         }
-      })
+      }),
     );
 
     for (const r of results) {
@@ -44,7 +48,7 @@ async function main() {
     console.log(`Processed ${i + batch.length}/${data.rows.length}`);
   }
 
-  const ndjson = records.map(r => JSON.stringify(r)).join("\n");
+  const ndjson = records.map((r) => JSON.stringify(r)).join("\n");
   await Bun.write("snapshot.ndjson", ndjson);
   console.log(`Wrote ${records.length} records to snapshot.ndjson`);
 }

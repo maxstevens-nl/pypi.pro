@@ -5,9 +5,7 @@ import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 
-export type Db =
-  | NeonHttpDatabase<typeof schema>
-  | NodePgDatabase<typeof schema>;
+export type Db = NeonHttpDatabase<typeof schema> | NodePgDatabase<typeof schema>;
 
 const LOCAL_PROXY_HOST = "db.localtest.me";
 const LOCAL_PROXY_PORT = 4444;
@@ -24,9 +22,7 @@ export function getNeonHttpDb(env: Env): Db {
   const url = new URL(env.DATABASE_URL);
   if (url.hostname === LOCAL_PROXY_HOST) {
     neonConfig.fetchEndpoint = (host) =>
-      host === LOCAL_PROXY_HOST
-        ? `http://${host}:${LOCAL_PROXY_PORT}/sql`
-        : `https://${host}/sql`;
+      host === LOCAL_PROXY_HOST ? `http://${host}:${LOCAL_PROXY_PORT}/sql` : `https://${host}/sql`;
   }
   const sqlClient = neon(env.DATABASE_URL);
   return drizzleNeonHttp({ client: sqlClient, schema });

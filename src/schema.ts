@@ -18,7 +18,7 @@ export const packages = pgTable(
   (t) => ({
     downloadsIdx: index("idx_packages_downloads").on(t.downloads4w),
     nameTrgmIdx: index("idx_packages_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
-  })
+  }),
 );
 
 export type Package = typeof packages.$inferSelect;

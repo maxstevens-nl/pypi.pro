@@ -5,7 +5,10 @@ export function sanitizeFtsTerm(input: string): string {
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned) return '""';
-  return cleaned.split(" ").map(t => `"${t}"`).join(" ");
+  return cleaned
+    .split(" ")
+    .map((t) => `"${t}"`)
+    .join(" ");
 }
 
 export function buildSearchQuery(raw: string): { term: string; isPrefix: boolean } {

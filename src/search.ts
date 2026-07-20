@@ -40,17 +40,17 @@ export async function search(db: Db, q: string) {
     .where(
       sql`${packages.name} = ${raw}
           OR ${packages.name} LIKE ${pattern}
-          OR (${useTrigram ? sql`true` : sql`false`} AND ${packages.name} % ${raw})`
+          OR (${useTrigram ? sql`true` : sql`false`} AND ${packages.name} % ${raw})`,
     )
     .orderBy(
       sql`${packages.name} = ${raw} DESC`,
       sql`${packages.name} LIKE ${pattern} DESC`,
-      desc(packages.downloads4w)
+      desc(packages.downloads4w),
     )
     .limit(20);
 
   const hits: SearchRow[] = (rows as RawRow[]).map(
-    ({ exact: _exact, prefix: _prefix, ...rest }) => rest
+    ({ exact: _exact, prefix: _prefix, ...rest }) => rest,
   );
 
   return { hits };

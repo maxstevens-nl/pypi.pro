@@ -58,8 +58,8 @@ Infrastructure: Workers + R2 (`Snapshots` bucket) + Queue (`Ingest`), all on Clo
 Worker entry `src/worker.ts` routes:
 
 - `GET  /api/search?q=` — search
-- `POST /ingest`        — insert records (queue consumer path is `src/consumer.ts`)
-- `POST /bootstrap`    — pull `snapshot.ndjson` from R2 `Snapshots` bucket → `ingest` into Neon
+- `POST /ingest` — insert records (queue consumer path is `src/consumer.ts`)
+- `POST /bootstrap` — pull `snapshot.ndjson` from R2 `Snapshots` bucket → `ingest` into Neon
 - `GET  /health`
 
 Search behavior (`src/search.ts`):
