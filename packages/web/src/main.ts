@@ -1,24 +1,49 @@
 const input = document.querySelector<HTMLInputElement>("#q")!;
 const list = document.querySelector<HTMLUListElement>("#results")!;
 
-let timer: ReturnType<typeof setTimeout>;
 let selectedIndex = -1;
 
-input.addEventListener("input", () => {
-  clearTimeout(timer);
-  selectedIndex = -1;
-  timer = setTimeout(async () => {
-    const q = input.value.trim();
-    if (!q) {
-      list.innerHTML = "";
-      return;
-    }
-    const base = import.meta.env.VITE_API_URL ?? "";
-    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);
-    const { hits } = await res.json();
-    renderResults(hits);
-  }, 80);
+input.focus();
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== input) {
+    const target = e.target as HTMLElement;
+    if (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+    e.preventDefault();
+    input.focus();
+  }
 });
+
+input.addEventListener("input", () => {
+  selectedIndex = -1;
+  const q = input.value.trim();
+  updateUrl(q);
+  void search(q);
+});
+
+const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+if (initialQuery) {
+  input.value = initialQuery;
+  void search(initialQuery);
+}
+
+async function search(q: string) {
+  if (!q) {
+    list.innerHTML = "";
+    return;
+  }
+  const base = import.meta.env.VITE_API_URL ?? "";
+  const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);
+  const { hits } = await res.json();
+  renderResults(hits);
+}
+
+function updateUrl(q: string) {
+  const url = new URL(window.location.href);
+  if (q) url.searchParams.set("q", q);
+  else url.searchParams.delete("q");
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
 
 input.addEventListener("keydown", (e) => {
   const items = list.querySelectorAll("li");
@@ -30,9 +55,9 @@ input.addEventListener("keydown", (e) => {
     e.preventDefault();
     selectedIndex = Math.max(selectedIndex - 1, -1);
     updateSelection(items);
-  } else if (e.key === "Enter" && selectedIndex >= 0) {
+  } else if (e.key === "Enter") {
     e.preventDefault();
-    const link = items[selectedIndex]?.querySelector("a");
+    const link = items[selectedIndex >= 0 ? selectedIndex : 0]?.querySelector("a");
     if (link) (link as HTMLAnchorElement).click();
   }
 });
@@ -41,6 +66,7 @@ function updateSelection(items: NodeListOf<HTMLLIElement>) {
   items.forEach((item, i) => {
     item.classList.toggle("selected", i === selectedIndex);
   });
+  items[selectedIndex]?.scrollIntoView({ block: "nearest" });
 }
 
 function renderResults(hits: any[]) {
