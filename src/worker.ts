@@ -81,6 +81,7 @@ async function handleSearch(ctx: ExecutionContext, url: URL): Promise<Response> 
     headers: {
       "content-type": "application/json",
       "access-control-allow-origin": "*",
+      "cache-control": "public, max-age=0, s-maxage=300, must-revalidate",
     },
   });
 }
