@@ -6,12 +6,28 @@
 
 declare module "sst" {
   export interface Resource {
-    Web: {
-      type: "sst.cloudflare.StaticSite";
-      url: string;
-    };
+    "Database": import("@cloudflare/workers-types").Hyperdrive
+    "NeonDatabase": {
+      "connectionString": string
+      "host": string
+      "name": string
+      "password": string
+      "port": number
+      "type": "sst.sst.Linkable"
+      "user": string
+    }
+    "Search": import("@cloudflare/workers-types").Service
+    "Urls": {
+      "api": string
+      "site": string
+      "type": "sst.sst.Linkable"
+    }
+    "Web": {
+      "type": "sst.cloudflare.StaticSite"
+      "url": string
+    }
   }
 }
 
-import "sst";
-export {};
+import "sst"
+export {}

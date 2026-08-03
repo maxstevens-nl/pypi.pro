@@ -15,10 +15,10 @@ export const packages = pgTable(
     trend: real("trend").default(0),
     downloads52w: integer("downloads_52w").array(),
   },
-  (t) => ({
-    downloadsIdx: index("idx_packages_downloads").on(t.downloads4w),
-    nameTrgmIdx: index("idx_packages_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
-  }),
+  (t) => [
+    index("idx_packages_downloads").on(t.downloads4w),
+    index("idx_packages_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
+  ],
 );
 
 export type Package = typeof packages.$inferSelect;

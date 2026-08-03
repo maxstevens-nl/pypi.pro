@@ -1,0 +1,27 @@
+import { local } from "@pulumi/command";
+import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { database } from "./database";
+
+const migrationsHash = createHash("sha256")
+  .update(
+    readdirSync("drizzle")
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => readFileSync(`drizzle/${f}`, "utf8"))
+      .join("\n---\n"),
+  )
+  .digest("hex");
+
+export const migrate = new local.Command(
+  "MigrateDb",
+  {
+    create: "bun ./src/migrate.ts",
+    update: "bun ./src/migrate.ts",
+    dir: process.cwd(),
+    environment: {
+      DATABASE_URL: database.properties.connectionString,
+    },
+    triggers: [database.properties.connectionString, migrationsHash],
+  },
+  { dependsOn: [database] },
+);
