@@ -1,4 +1,3 @@
-import { domain } from "./stage";
 import { urls } from "./urls";
 
 export const web = new sst.cloudflare.StaticSiteV2("Web", {
@@ -7,8 +6,7 @@ export const web = new sst.cloudflare.StaticSiteV2("Web", {
     command: "bun run build",
     output: "dist",
   },
-  notFound: "single-page-application",
-  domain,
+  notFound: "404",
   environment: {
     VITE_API_URL: urls.properties.api,
   },
@@ -18,3 +16,5 @@ export const web = new sst.cloudflare.StaticSiteV2("Web", {
     url: "http://localhost:5173",
   },
 });
+
+export const webScriptName = web.nodes.server.nodes.worker.scriptName;

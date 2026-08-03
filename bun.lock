@@ -6,6 +6,7 @@
       "name": "pypi-search",
       "dependencies": {
         "@neondatabase/serverless": "^1.1.0",
+        "@pulumi/cloudflare": "^6.18.0",
         "@pulumi/command": "^1.2.1",
         "drizzle-orm": "^0.45.2",
         "pg": "^8.22.0",
@@ -339,6 +340,8 @@
     "@protobufjs/pool": ["@protobufjs/pool@1.1.0", "", {}, "sha512-0kELaGSIDBKvcgS4zkjz1PeddatrjYcmMWOlAuAPwAeccUrPHdUqo/J6LiymHHEiJT5NrF1UVwxY14f+fy4WQw=="],
 
     "@protobufjs/utf8": ["@protobufjs/utf8@1.1.2", "", {}, "sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug=="],
+
+    "@pulumi/cloudflare": ["@pulumi/cloudflare@6.18.0", "", { "dependencies": { "@pulumi/pulumi": "^3.142.0" } }, "sha512-L49neVgL7crzUKr+lfNYAmooqnmSGPg6TN8+PXouxyjojjwMdRM3WLNPkUxYu3vqr0WhD86afqdujee1Kz4R9w=="],
 
     "@pulumi/command": ["@pulumi/command@1.2.1", "", { "dependencies": { "@pulumi/pulumi": "^3.142.0" } }, "sha512-mutNDIUYP67yCBYOVIidQyxuTwZDY9v/sx9EGbgIv4PXfyfolOKGgGLeoHEbI1lxRwaw2wbTZ3VNIynDnA5VKA=="],
 

@@ -49,7 +49,9 @@ async function main() {
     }));
 
     await db.insert(packages).values(batch).onConflictDoNothing();
-    console.log(`Seeded ${Math.min(offset + batchSize, records.length)}/${records.length} packages.`);
+    console.log(
+      `Seeded ${Math.min(offset + batchSize, records.length)}/${records.length} packages.`,
+    );
   }
 }
 

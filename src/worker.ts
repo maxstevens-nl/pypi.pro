@@ -26,6 +26,11 @@ export default {
 
       if (url.pathname === "/api/search") {
         response = await handleSearch(ctx, url);
+      } else if (url.pathname === "/search" || url.pathname.startsWith("/search/")) {
+        response = Response.redirect(
+          new URL(`/?${url.searchParams.toString()}`, url.origin).toString(),
+          301,
+        );
       } else if (env.ASSETS) {
         response = await env.ASSETS.fetch(req);
       } else {
