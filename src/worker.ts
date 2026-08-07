@@ -70,7 +70,6 @@ export default {
 
 async function handleSearch(ctx: ExecutionContext, url: URL): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
-  if (!q) return json({ hits: [] });
 
   const client = new Client({
     connectionString: Resource.Database.connectionString,
@@ -78,7 +77,7 @@ async function handleSearch(ctx: ExecutionContext, url: URL): Promise<Response> 
   await client.connect();
   const db = drizzle(client, { schema: await import("./schema") });
 
-  const result = await search(db, q);
+  const result = q ? await search(db, q) : { hits: [] };
 
   ctx.waitUntil(client.end());
 
@@ -91,7 +90,4 @@ async function handleSearch(ctx: ExecutionContext, url: URL): Promise<Response> 
   });
 }
 
-const json = (o: unknown) =>
-  new Response(JSON.stringify(o), {
-    headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
-  });
+

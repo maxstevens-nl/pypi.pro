@@ -2,6 +2,7 @@ const input = document.querySelector<HTMLInputElement>("#q")!;
 const list = document.querySelector<HTMLUListElement>("#results")!;
 
 let selectedIndex = -1;
+let searchToken = 0;
 
 input.focus();
 
@@ -22,20 +23,27 @@ input.addEventListener("input", () => {
 });
 
 const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
-if (initialQuery) {
-  input.value = initialQuery;
-  void search(initialQuery);
-}
+input.value = initialQuery;
+void search(initialQuery);
 
 async function search(q: string) {
+  const token = ++searchToken;
   if (!q) {
     list.innerHTML = "";
+    void ping();
     return;
   }
   const base = import.meta.env.VITE_API_URL ?? "";
   const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);
+  if (token !== searchToken) return;
   const { hits } = await res.json();
+  if (token !== searchToken) return;
   renderResults(hits);
+}
+
+async function ping() {
+  const base = import.meta.env.VITE_API_URL ?? "";
+  await fetch(`${base}/api/search?q=`);
 }
 
 function updateUrl(q: string) {
