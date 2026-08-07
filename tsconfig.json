@@ -19,6 +19,6 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*", "test/**/*", "sst-env.d.ts"],
+  "include": ["src/**/*", "test/**/*", "infra/**/*", "sst.config.ts", "sst-env.d.ts"],
   "exclude": ["node_modules", "dist", "packages"]
 }
