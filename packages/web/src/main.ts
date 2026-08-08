@@ -3,6 +3,8 @@ const list = document.querySelector<HTMLUListElement>("#results")!;
 
 let selectedIndex = -1;
 let searchToken = 0;
+let debounceTimer: ReturnType<typeof setTimeout>;
+const activeControllers = new Set<AbortController>();
 const searchCache = new Map<string, any[]>();
 
 input.focus();
@@ -17,15 +19,18 @@ document.addEventListener("keydown", (e) => {
 });
 
 input.addEventListener("input", () => {
+  clearTimeout(debounceTimer);
   selectedIndex = -1;
   const q = input.value.trim();
   updateUrl(q);
-  void startSearch(q);
+  debounceTimer = setTimeout(() => startSearch(q), 75);
 });
 
 const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
-input.value = initialQuery;
-void startSearch(initialQuery);
+if (initialQuery) {
+  input.value = initialQuery;
+  startSearch(initialQuery);
+}
 
 async function startSearch(q: string) {
   const token = ++searchToken;
@@ -38,12 +43,18 @@ async function startSearch(q: string) {
   const cached = searchCache.get(key);
   if (cached) {
     renderResults(cached);
+    activeControllers.forEach((c) => c.abort());
+    activeControllers.clear();
     return;
   }
 
+  const controller = new AbortController();
+  const signal = controller.signal;
+  activeControllers.add(controller);
+
   const base = import.meta.env.VITE_API_URL ?? "";
   try {
-    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);
+    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`, { signal });
     if (!res.ok) throw new Error(`Search request failed with HTTP ${res.status}`);
     if (token !== searchToken) return;
     const { hits } = await res.json();
@@ -51,7 +62,10 @@ async function startSearch(q: string) {
     searchCache.set(key, hits);
     if (searchCache.size > 100) searchCache.delete(searchCache.keys().next().value!);
     renderResults(hits);
-  } catch (error) {
+    activeControllers.forEach((c) => { if (c !== controller) c.abort(); });
+    activeControllers.clear();
+  } catch (error: any) {
+    if (error?.name === "AbortError") return;
     console.error("Search request failed", error);
   }
 }
