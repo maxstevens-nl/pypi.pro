@@ -35,7 +35,13 @@ describe("search", () => {
 
   test("returns typed rows including downloads_4w", async () => {
     const hits = [
-      { name: "django", summary: "A web framework", version: "5.0", downloads_4w: 123 },
+      {
+        name: "django",
+        summary: "A web framework",
+        version: "5.0",
+        downloads_4w: 123,
+        import_names: ["django"],
+      },
     ];
     const db = {
       execute() {

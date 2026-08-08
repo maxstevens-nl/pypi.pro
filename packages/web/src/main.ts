@@ -112,7 +112,16 @@ function renderResults(hits: any[]) {
       (h: any) =>
         `<li>
       <a href="https://pypi.org/project/${escapeHtml(h.name ?? "")}/">
-        <strong>${escapeHtml(h.name ?? "")}</strong>
+        <div class="name-row">
+          <strong>${escapeHtml(h.name ?? "")}</strong>
+          ${
+            Array.isArray(h.import_names) && h.import_names.length > 0
+              ? h.import_names
+                  .map((n: string) => `<code class="import">${escapeHtml(n)}</code>`)
+                  .join("")
+              : ""
+          }
+        </div>
         <div class="meta">
           <span>${escapeHtml(h.summary ?? "")}</span>
         </div>

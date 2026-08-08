@@ -1,0 +1,193 @@
+{
+  "id": "147e603f-1c8a-4e1d-9590-8c3d7cf27ce2",
+  "prevId": "2e1003f8-a526-43aa-98b2-25fdbc4c4f8d",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.packages": {
+      "name": "packages",
+      "schema": "",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author": {
+          "name": "author",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license": {
+          "name": "license",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "classifiers": {
+          "name": "classifiers",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requires_python": {
+          "name": "requires_python",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "keywords": {
+          "name": "keywords",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "home_page": {
+          "name": "home_page",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "downloads_4w": {
+          "name": "downloads_4w",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_names": {
+          "name": "import_names",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "search_tsv": {
+          "name": "search_tsv",
+          "type": "tsvector",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "to_tsvector('simple', lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g')))\n          || to_tsvector('simple', import_names_to_text(import_names))",
+            "type": "stored"
+          }
+        },
+        "normalized_name": {
+          "name": "normalized_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g'))",
+            "type": "stored"
+          }
+        }
+      },
+      "indexes": {
+        "idx_packages_name_lower_pattern": {
+          "name": "idx_packages_name_lower_pattern",
+          "columns": [
+            {
+              "expression": "lower(\"name\") text_pattern_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_packages_name_lower_trgm": {
+          "name": "idx_packages_name_lower_trgm",
+          "columns": [
+            {
+              "expression": "lower(\"name\") gin_trgm_ops",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
+        "idx_packages_normalized_name": {
+          "name": "idx_packages_normalized_name",
+          "columns": [
+            {
+              "expression": "normalized_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_packages_search_bm25": {
+          "name": "idx_packages_search_bm25",
+          "columns": [
+            {
+              "expression": "search_tsv",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "lakebase_bm25",
+          "with": {
+            "default_limit": 100
+          }
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

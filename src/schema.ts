@@ -22,8 +22,10 @@ export const packages = pgTable(
     homePage: text("home_page"),
     updatedAt: bigint("updated_at", { mode: "number" }),
     downloads4w: bigint("downloads_4w", { mode: "number" }),
+    importNames: text("import_names").array(),
     searchTsv: tsvector("search_tsv").generatedAlwaysAs(
-      sql`to_tsvector('simple', lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g')))`,
+      sql`to_tsvector('simple', lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g')))
+          || to_tsvector('simple', import_names_to_text(import_names))`,
     ),
     normalizedName: text("normalized_name").generatedAlwaysAs(
       sql`lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g'))`,

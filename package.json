@@ -13,6 +13,8 @@
     "db:seed:snapshot": "bun scripts/seed-snapshot.ts",
     "db:seed:bigquery": "bun scripts/seed-bigquery.ts",
     "db:enable-lakebase": "bun scripts/enable-lakebase.ts",
+    "detect:imports": "bun scripts/detect-import-name.ts",
+    "detect:imports:snapshot": "bun scripts/detect-import-name-snapshot.ts",
     "db:migrate": "bun src/migrate.ts",
     "db:generate": "drizzle-kit generate --dialect=postgresql --schema=src/schema.ts --out=./drizzle"
   },

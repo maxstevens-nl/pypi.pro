@@ -21,13 +21,16 @@ NEON_API_KEY=napi_... bun run db:enable-lakebase  # add lakebase_vector/lakebase
 bun run db:seed:bigquery          # BigQuery seed; modes --dry-run | --test | --limit=N | --live (--force re-seeds)
 bun scripts/backfill-downloads.ts # backfill downloads_4w from hugovk 30-day snapshot
 bun scripts/reset-db.ts           # drop public schema + re-run migrations (also honors DATABASE_URL)
+bun scripts/detect-import-name.ts # resolve a package's import name(s); see scripts/import-name.ts for the algorithm
+bun scripts/detect-import-name-snapshot.ts  # bulk-detect import names from .data/snapshot.ndjson → .data/import-names.csv
+bun scripts/import-import-names.ts # import .data/import-names.csv into packages.import_names (updates ONLY that column; honors DATABASE_URL)
 ```
 
 Gotchas:
 
 - `db:seed:local` and `db:seed:snapshot` in package.json are stale — those scripts were deleted (commit f812d33). Only `db:seed:bigquery` exists.
 - `bun run db:seed:bigquery --live` scans ~137 GB in BigQuery (~$0.70) and refuses to re-seed once >500k rows unless `--force` is passed.
-- `src/migrate.ts` and the seed/backfill scripts resolve the connection via `Resource.*` (injected through `SST_RESOURCES_JSON`), so standalone `bun` runs fail without an SST session; `reset-db`/`migrate` fall back to `DATABASE_URL`.
+- `src/migrate.ts` and the seed/backfill scripts resolve the connection via `Resource.*` (injected through `SST_RESOURCES_JSON`), so standalone `bun` runs fail without an SST session; `reset-db`/`migrate`/`import-import-names` fall back to `DATABASE_URL`.
 - There is no root `bun run build` — only the web package has a build script.
 
 ## Lakebase Search (BM25)

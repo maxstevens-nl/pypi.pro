@@ -6,6 +6,7 @@ type SearchRow = {
   summary: string | null;
   version: string | null;
   downloads_4w: number | string | null;
+  import_names: string[] | null;
 };
 
 export async function search(db: Db, q: string) {
@@ -17,20 +18,20 @@ export async function search(db: Db, q: string) {
 
   const result = await db.execute(sql`
     WITH bm25 AS (
-      SELECT name, summary, version, downloads_4w, normalized_name, ${bm25Score} AS score
+      SELECT name, summary, version, downloads_4w, normalized_name, import_names, ${bm25Score} AS score
       FROM packages
       WHERE ${bm25Score} < 0
       ORDER BY ${bm25Score}
       LIMIT 100
     ),
     exact AS (
-      SELECT name, summary, version, downloads_4w, normalized_name, 0::double precision AS score
+      SELECT name, summary, version, downloads_4w, normalized_name, import_names, 0::double precision AS score
       FROM packages
       WHERE normalized_name = ${normalized}
       LIMIT 1
     ),
     candidates AS (
-      SELECT name, summary, version, downloads_4w, normalized_name, score,
+      SELECT name, summary, version, downloads_4w, normalized_name, import_names, score,
         ROW_NUMBER() OVER (
           PARTITION BY name
           ORDER BY (normalized_name = ${normalized}) DESC, score
@@ -41,7 +42,7 @@ export async function search(db: Db, q: string) {
         SELECT * FROM exact
       ) all_candidates
     )
-    SELECT name, summary, version, downloads_4w
+    SELECT name, summary, version, downloads_4w, import_names
     FROM candidates
     WHERE rn = 1
     ORDER BY
