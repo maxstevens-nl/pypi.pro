@@ -10,3 +10,4 @@ dist/
 .wrangler/
 pypi.db
 snapshot.ndjson
+.data
