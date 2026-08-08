@@ -4,7 +4,7 @@
     "module": "ES2022",
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
-    "types": ["bun-types"],
+    "types": ["@cloudflare/workers-types", "bun-types"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,6 +12,6 @@
     "resolveJsonModule": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["infra/**/*", "sst.config.ts", "sst-env.d.ts", "scripts/**/*"],
+  "include": ["src/**/*", "test/**/*", "sst-env.d.ts"],
   "exclude": ["node_modules", "dist", "packages"]
 }

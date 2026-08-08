@@ -8,7 +8,7 @@
     "dev:api": "wrangler dev --config wrangler.dev.toml --local --port 8787",
     "deploy": "sst deploy --stage prod",
     "test": "bun test",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.app.json",
     "lint": "oxlint",
     "db:seed:local": "bun scripts/seed-local.ts",
     "db:seed:snapshot": "bun scripts/seed-snapshot.ts",

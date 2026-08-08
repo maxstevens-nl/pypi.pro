@@ -25,7 +25,7 @@ if (!$dev) {
     ttl: 1,
   });
 
-  const routeDeps = [migrate, searchApi.nodes.worker, web.nodes.server];
+  const routeDeps = [migrate, searchApi.nodes.worker!, web.nodes.server!];
 
   new cloudflare.WorkersRoute(
     "SearchRoute-api",

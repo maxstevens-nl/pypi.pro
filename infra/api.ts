@@ -11,7 +11,6 @@ export const searchApi = new sst.cloudflare.Worker("Search", {
   transform: {
     worker: {
       observability: { enabled: true },
-      cacheOptions: { enabled: true },
     },
   },
 });
