@@ -11,24 +11,18 @@ const migrationsHash = createHash("sha256")
       .join("\n---\n"),
   )
   .digest("hex");
-const seedHash = createHash("sha256")
-  .update(readFileSync("snapshot.ndjson"))
-  .digest("hex");
-const migrateCommand = $app.stage === "prod"
-  ? "bun ./src/migrate.ts"
-  : "bun ./src/migrate.ts && bun ./scripts/seed.ts";
 
 export const migrate = new local.Command(
   "MigrateDb",
   {
-    create: migrateCommand,
-    update: migrateCommand,
+    create: "bun ./src/migrate.ts",
+    update: "bun ./src/migrate.ts",
     dir: process.cwd(),
     environment: {
       DATABASE_URL: database.properties.connectionString,
       SST_STAGE: $app.stage,
     },
-    triggers: [database.properties.connectionString, migrationsHash, seedHash],
+    triggers: [database.properties.connectionString, migrationsHash],
   },
   { dependsOn: [database] },
 );

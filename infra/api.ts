@@ -17,3 +17,20 @@ export const searchApi = new sst.cloudflare.Worker("Search", {
 });
 
 export const searchScriptName = searchApi.nodes.worker.scriptName;
+
+const gcpKey = new sst.Secret("GcpServiceAccountKey");
+
+const gcpConfig = new sst.Linkable("GcpConfig", {
+  properties: {
+    project: process.env.GOOGLE_PROJECT!,
+  },
+});
+
+new sst.cloudflare.Cron("DailyRefresh", {
+  schedules: ["0 7 * * *"],
+  worker: {
+    handler: "src/cron.ts",
+    link: [hyperdrive, gcpKey, gcpConfig],
+    compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
+  },
+});

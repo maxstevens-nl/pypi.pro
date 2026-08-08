@@ -82,8 +82,8 @@ function renderResults(hits: any[]) {
     .map(
       (h: any) =>
         `<li>
-      <a href="https://pypi.org/project/${escapeHtml(h.name)}/">
-        <strong>${escapeHtml(h.display_name)}</strong>
+      <a href="https://pypi.org/project/${escapeHtml(h.name ?? "")}/">
+        <strong>${escapeHtml(h.name ?? "")}</strong>
         <div class="meta">
           <span>${escapeHtml(h.summary ?? "")}</span>
           <span class="downloads">${formatDownloads(h.downloads_4w ?? 0)}</span>

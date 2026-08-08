@@ -16,8 +16,13 @@ bun run build                     # build SST app (note: NOT the frontend build)
 # Snapshot generation → snapshot.ndjson (top PyPI packages by 30-day downloads)
 bun scripts/build-snapshot.ts
 
-# Seed local Postgres from BigQuery (one-time; idempotent — skips if already seeded)
-bun run db:seed
+# Apply database migrations (schema changes only; does not seed data)
+bun run db:migrate
+
+# Seed package data explicitly
+bun run db:seed:local
+bun run db:seed:bigquery
+bun run db:seed:snapshot
 
 # Tear down the local Postgres volume (nuclear option; requires re-seed after)
 docker compose down -v
@@ -37,7 +42,7 @@ Prerequisites:
 4. First run creates `.sst/` state dir
 5. `.env` with `DATABASE_URL=postgres://postgres:postgres@db.localtest.me:5432/main` (copy `.env.example`)
 
-After the first `bun run dev`, the database is empty. `bun run dev` detects this and seeds it automatically from the `pypi.packages_summary` BigQuery table via GCS (one-time; the Docker volume persists between restarts). You can also run `bun run db:seed` manually to reseed.
+After the first `bun run dev`, the database may be empty. Migrations only create or update the schema; seed package data explicitly with `bun run db:seed:local`, `bun run db:seed:bigquery`, or `bun run db:seed:snapshot`.
 
 ## Local dev data flow
 
@@ -53,7 +58,7 @@ Storage is **Neon Postgres** (serverless) in production, **local Postgres 17 via
 
 ## Architecture
 
-Infrastructure: Workers + R2 (`Snapshots` bucket) + Queue (`Ingest`), all on Cloudflare. Storage is Neon Postgres (external). All wired in `sst.config.ts`.
+Infrastructure: Workers + R2 (`Snapshots` bucket) + Queue (`Ingest`), all on Cloudflare. Storage is Neon Postgres (external). Resources are composed through `infra/app.ts`.
 
 Worker entry `src/worker.ts` routes:
 

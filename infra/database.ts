@@ -46,7 +46,7 @@ export const database = new sst.Linkable("NeonDatabase", {
     host: dbEndpointHost,
     port: dbPort,
     password: dbRole.password,
-    connectionString: $interpolate`postgresql://${dbRole.name}:${dbRole.password}@${dbEndpointHost}:${dbPort}/${db.name}?sslmode=require`,
+    connectionString: $interpolate`postgresql://${dbRole.name}:${dbRole.password}@${dbEndpointHost}:${dbPort}/${db.name}?sslmode=verify-full`,
   },
 });
 
@@ -62,3 +62,7 @@ export const hyperdrive = new sst.cloudflare.Hyperdrive("Database", {
 
   caching: $dev ? false : undefined,
 });
+
+export const outputs = {
+  DATABASE_URL: database.properties.connectionString,
+};

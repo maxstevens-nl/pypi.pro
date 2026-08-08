@@ -1,8 +1,9 @@
+import { Resource } from "sst";
 import { spawnSync } from "node:child_process";
 import { openSync, readFileSync, writeFileSync, closeSync, statSync } from "node:fs";
 import type { PackageRecord } from "../src/types";
 
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = Resource.NeonDatabase.connectionString;
 const SNAPSHOT_PATH = process.env.SNAPSHOT_PATH ?? "snapshot.ndjson";
 
 async function main() {
@@ -70,14 +71,12 @@ async function main() {
   for (const r of records) {
     const row = [
       escapeCsv(r.name),
-      escapeCsv(r.display_name),
       escapeCsv(r.summary),
       escapeCsv(r.version),
       escapeCsv(r.home_page),
       String(Math.floor(r.updated_at ?? 0)),
       String(r.downloads_1w ?? 0),
       String(r.downloads_4w ?? 0),
-      String(r.trend ?? 0),
     ].join(",");
     writeFileSync(out, row + "\n");
   }
@@ -87,10 +86,10 @@ async function main() {
   const sql = [
     "BEGIN;",
     "TRUNCATE TABLE packages;",
-    "\\copy packages (name, display_name, summary, version, home_page, updated_at, downloads_1w, downloads_4w, trend) FROM 'seed.csv' WITH (FORMAT csv, NULL '\\N')",
+    "\\copy packages (name, summary, version, home_page, updated_at, downloads_1w, downloads_4w) FROM 'seed.csv' WITH (FORMAT csv, NULL '\\N')",
     "COMMIT;",
     "VACUUM (ANALYZE) packages;",
-    "SELECT count(*) AS seeded, count(summary) AS with_summary, count(display_name) AS with_display_name FROM packages;",
+    "SELECT count(*) AS seeded, count(summary) AS with_summary FROM packages;",
     "",
   ].join("\n");
 

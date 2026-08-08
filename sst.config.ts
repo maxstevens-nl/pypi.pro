@@ -10,12 +10,7 @@ export default $config({
     };
   },
   async run() {
-    const fs = await import("fs");
-    const outputs = {};
-    for (const value of fs.readdirSync("./infra/")) {
-      const result = await import("./infra/" + value);
-      if (result.outputs) Object.assign(outputs, result.outputs);
-    }
+    const { outputs } = await import("./infra/app");
     return outputs;
   },
 });

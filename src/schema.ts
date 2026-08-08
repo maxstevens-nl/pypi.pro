@@ -1,11 +1,10 @@
 import { sql } from "drizzle-orm";
-import { integer, real, text, bigint, pgTable, index } from "drizzle-orm/pg-core";
+import { integer, text, bigint, pgTable, index } from "drizzle-orm/pg-core";
 
 export const packages = pgTable(
   "packages",
   {
     name: text("name").primaryKey(),
-    displayName: text("display_name"),
     summary: text("summary"),
     description: text("description"),
     author: text("author"),
@@ -16,9 +15,8 @@ export const packages = pgTable(
     version: text("version"),
     homePage: text("home_page"),
     updatedAt: bigint("updated_at", { mode: "number" }),
-    downloads1w: bigint("downloads_1w", { mode: "number" }).default(0),
-    downloads4w: bigint("downloads_4w", { mode: "number" }).default(0),
-    trend: real("trend").default(0),
+    downloads1w: bigint("downloads_1w", { mode: "number" }),
+    downloads4w: bigint("downloads_4w", { mode: "number" }),
     downloads52w: integer("downloads_52w").array(),
   },
   (t) => [

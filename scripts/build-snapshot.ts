@@ -24,14 +24,12 @@ async function main() {
           if (!info.version) return null;
           return {
             name: normalizeName(item.project),
-            display_name: info.name ?? item.project,
-            summary: info.summary ?? "",
+              summary: info.summary ?? "",
             version: info.version ?? "",
             home_page: info.home_page ?? info.project_url ?? "",
             updated_at: Date.now() / 1000,
             downloads_1w: Math.floor(item.download_count / 4),
             downloads_4w: item.download_count,
-            trend: 0,
           };
         } catch {
           return null;

@@ -4,7 +4,6 @@ import type { Db } from "./db";
 
 interface SearchRow {
   name: string;
-  display_name: string | null;
   summary: string | null;
   version: string | null;
   downloads_4w: number | null;
@@ -17,7 +16,6 @@ interface RawRow extends SearchRow {
 
 const selectColumns = {
   name: packages.name,
-  display_name: packages.displayName,
   summary: packages.summary,
   version: packages.version,
   downloads_4w: packages.downloads4w,
@@ -29,22 +27,23 @@ export async function search(db: Db, q: string) {
 
   const pattern = `${raw}%`;
   const useTrigram = raw.length >= 3;
+  const normalizedName = sql`lower(${packages.name})`;
 
   const rows = await db
     .select({
       ...selectColumns,
-      exact: sql<boolean>`${packages.name} = ${raw}`,
-      prefix: sql<boolean>`${packages.name} LIKE ${pattern}`,
+      exact: sql<boolean>`${normalizedName} = ${raw}`,
+      prefix: sql<boolean>`${normalizedName} LIKE ${pattern}`,
     })
     .from(packages)
     .where(
-      sql`${packages.name} = ${raw}
-          OR ${packages.name} LIKE ${pattern}
-          OR (${useTrigram ? sql`true` : sql`false`} AND ${packages.name} % ${raw})`,
+      sql`${normalizedName} = ${raw}
+          OR ${normalizedName} LIKE ${pattern}
+          OR (${useTrigram ? sql`true` : sql`false`} AND ${normalizedName} % ${raw})`,
     )
     .orderBy(
-      sql`${packages.name} = ${raw} DESC`,
-      sql`${packages.name} LIKE ${pattern} DESC`,
+      sql`${normalizedName} = ${raw} DESC`,
+      sql`${normalizedName} LIKE ${pattern} DESC`,
       desc(packages.downloads4w),
     )
     .limit(20);
