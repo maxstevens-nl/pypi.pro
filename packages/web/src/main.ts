@@ -44,7 +44,7 @@ async function startSearch(q: string) {
   const key = q.toLowerCase();
   const cached = searchCache.get(key);
   if (cached) {
-    renderResults(cached);
+    commitSearch(token, cached);
     return;
   }
 
@@ -55,19 +55,24 @@ async function startSearch(q: string) {
     if (token < lastRenderedToken) return;
     const { hits } = await res.json();
     if (token < lastRenderedToken) return;
-    for (const [t, c] of pendingControllers) {
-      if (t < token) c.abort();
-    }
-    lastRenderedToken = token;
     searchCache.set(key, hits);
     if (searchCache.size > 100) searchCache.delete(searchCache.keys().next().value!);
-    renderResults(hits);
+    commitSearch(token, hits);
   } catch (error: any) {
     if (error?.name === "AbortError") return;
     console.error("Search request failed", error);
   } finally {
     pendingControllers.delete(token);
   }
+}
+
+function commitSearch(token: number, hits: any[]) {
+  for (const [t, c] of pendingControllers) {
+    if (t < token) c.abort();
+  }
+  lastRenderedToken = token;
+  pendingControllers.delete(token);
+  renderResults(hits);
 }
 
 function updateUrl(q: string) {
