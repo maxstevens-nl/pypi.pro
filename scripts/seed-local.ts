@@ -75,8 +75,6 @@ async function main() {
       escapeCsv(r.version),
       escapeCsv(r.home_page),
       String(Math.floor(r.updated_at ?? 0)),
-      String(r.downloads_1w ?? 0),
-      String(r.downloads_4w ?? 0),
     ].join(",");
     writeFileSync(out, row + "\n");
   }
@@ -86,7 +84,7 @@ async function main() {
   const sql = [
     "BEGIN;",
     "TRUNCATE TABLE packages;",
-    "\\copy packages (name, summary, version, home_page, updated_at, downloads_1w, downloads_4w) FROM 'seed.csv' WITH (FORMAT csv, NULL '\\N')",
+    "\\copy packages (name, summary, version, home_page, updated_at) FROM 'seed.csv' WITH (FORMAT csv, NULL '\\N')",
     "COMMIT;",
     "VACUUM (ANALYZE) packages;",
     "SELECT count(*) AS seeded, count(summary) AS with_summary FROM packages;",

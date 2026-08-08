@@ -10,7 +10,4 @@ export interface PackageRecord {
   version: string;
   home_page?: string;
   updated_at: number;
-  downloads_1w?: number;
-  downloads_4w?: number;
-  downloads_52w?: number[];
 }

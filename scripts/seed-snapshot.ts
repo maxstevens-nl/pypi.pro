@@ -42,9 +42,6 @@ async function main() {
       version: record.version,
       homePage: record.home_page,
       updatedAt: Math.floor(record.updated_at),
-      downloads1w: record.downloads_1w ?? 0,
-      downloads4w: record.downloads_4w ?? 0,
-      downloads52w: record.downloads_52w,
     }));
 
     await db.insert(packages).values(batch).onConflictDoNothing();

@@ -24,12 +24,16 @@ async function main() {
           if (!info.version) return null;
           return {
             name: normalizeName(item.project),
-              summary: info.summary ?? "",
+            summary: info.summary ?? "",
+            description: info.description ?? "",
+            author: info.author ?? "",
+            license: info.license ?? "",
+            classifiers: info.classifiers ?? [],
+            requires_python: info.requires_python ?? "",
+            keywords: info.keywords ?? "",
             version: info.version ?? "",
             home_page: info.home_page ?? info.project_url ?? "",
             updated_at: Date.now() / 1000,
-            downloads_1w: Math.floor(item.download_count / 4),
-            downloads_4w: item.download_count,
           };
         } catch {
           return null;

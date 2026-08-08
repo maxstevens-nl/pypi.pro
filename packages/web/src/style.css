@@ -80,12 +80,3 @@ h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-#results li .downloads {
-  color: #888;
-  flex-shrink: 0;
-  font-size: 0.8rem;
-  font-weight: 500;
-  margin-left: auto;
-  white-space: nowrap;
-}

@@ -71,7 +71,7 @@ Search behavior (`src/search.ts`):
 
 - Prefix `LIKE 'q%'` match first; if <5 hits and query length ≥3, falls back to `pg_trgm` similarity
 - Exact name match always promoted to position 0
-- Results capped at 20, ordered by `downloads_4w DESC`
+- Results capped at 20, ordered by exact name match then name
 
 Data source for snapshots: `hugovk/top-pypi-packages` 30-day JSON, enriched via per-package `pypi.org/pypi/<name>/json`.
 

@@ -1,4 +1,4 @@
-import { desc, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { packages } from "./schema";
 import type { Db } from "./db";
 
@@ -6,7 +6,6 @@ interface SearchRow {
   name: string;
   summary: string | null;
   version: string | null;
-  downloads_4w: number | null;
 }
 
 interface RawRow extends SearchRow {
@@ -17,7 +16,6 @@ const selectColumns = {
   name: packages.name,
   summary: packages.summary,
   version: packages.version,
-  downloads_4w: packages.downloads4w,
 } as const;
 
 export async function search(db: Db, q: string) {
@@ -33,10 +31,7 @@ export async function search(db: Db, q: string) {
     })
     .from(packages)
     .where(sql`${normalizedName} LIKE ${pattern}`)
-    .orderBy(
-      sql`${normalizedName} = ${raw} DESC`,
-      desc(packages.downloads4w),
-    )
+    .orderBy(sql`${normalizedName} = ${raw} DESC`, packages.name)
     .limit(20);
 
   if (prefixRows.length >= 5 || raw.length < 3) {
@@ -52,7 +47,7 @@ export async function search(db: Db, q: string) {
       })
       .from(packages)
       .where(sql`${normalizedName} % ${raw}`)
-      .orderBy(sql`similarity(${normalizedName}, ${raw}) DESC`, desc(packages.downloads4w))
+      .orderBy(sql`similarity(${normalizedName}, ${raw}) DESC`, packages.name)
       .limit(20);
   } catch (error) {
     console.log(
