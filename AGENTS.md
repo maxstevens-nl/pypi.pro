@@ -41,7 +41,7 @@ Notes:
 
 - `lakebase_bm25` computes corpus-wide BM25 statistics at index build time and refreshes them on VACUUM. After `db:seed:bigquery --live` (or any large bulk load), run `VACUUM packages` so scores stay accurate.
 - The extension is Neon/Databricks-only — there is no Docker image, and the old offline Docker dev path was removed (commit in this change).
-- `default_limit=20` matches the search cap so top-K pushdown returns only what the query needs.
+- `default_limit=100` sizes the BM25 candidate pool for re-ranking (search caps at 20), so top-K pushdown returns only what the re-rank needs.
 
 ## Migrations
 
@@ -50,21 +50,15 @@ Notes:
 ## Infrastructure (infra/*.ts, composed in infra/app.ts)
 
 - Postgres is **Neon**, provisioned through the `neon` provider in `sst.config.ts` (`infra/database.ts`): hardcoded project id, per-stage branch (non-prod) + role + database. Requires `NEON_API_KEY` in `.env` even for `sst dev` — real Neon is used locally.
-- `sst.cloudflare.Hyperdrive` caches the Neon connection; Search Worker and Cron link to it.
+- Workers connect to Neon directly via a `DATABASE_URL` env var (`infra/api.ts`), not Hyperdrive. `sst.cloudflare.Hyperdrive` (`infra/database.ts`) is kept around but not linked to any worker.
 - Search Worker `Search` (`src/worker.ts`): `/api/search?q=` → JSON; `/search` → 301 to `/?q=...`; other paths → `env.ASSETS`.
 - StaticSiteV2 `Web` (`packages/web`, vanilla TS + Vite) serves the frontend. `infra/routes.ts` routes `/api/*` and `/search(/…)` to the Search worker, everything else to Web.
-- Cron `DailyRefresh` (`src/cron.ts`, daily 07:00 UTC): queries `bigquery-public-data.pypi.distribution_metadata` for releases in the last 24h and upserts via a `pg` Client over Hyperdrive. Credentials: SST Secret `GcpServiceAccountKey` (`sst secret set GcpServiceAccountKey '<json>'`) + `GcpConfig` (reads `GOOGLE_PROJECT` at config time).
+- Cron `DailyRefresh` (`src/cron.ts`, daily 07:00 UTC): queries `bigquery-public-data.pypi.distribution_metadata` for releases in the last 24h and upserts via a `pg` Client over `DATABASE_URL` (direct to Neon). Credentials: SST Secret `GcpServiceAccountKey` (`sst secret set GcpServiceAccountKey '<json>'`) + `GcpConfig` (reads `GOOGLE_PROJECT` at config time).
 - Domains per stage (`infra/stage.ts`): prod → `pypi.pro`, dev → `dev.pypi.pro`, else `<stage>.dev.pypi.pro`. Prod `removal: retain`.
 
-## Search (`src/search.ts` + `src/query.ts`)
+## Search (`src/search.ts`)
 
-One SQL statement with CTEs, tiered:
-
-1. Prefix `LIKE lower(name)%` — exact name match ranked first within the tier
-2. Trigram similarity (`lower(name) % q`, k-NN `<->`) — only when `len(q) >= 3`
-3. BM25 over `search_tsv` (name+summary+keywords, simple+english) via `<@>`/`to_bm25query` against `idx_packages_search_bm25` — only when `len(q) >= 3`. Matches are docs with `score < 0`; the negated BM25 score is used as the tier's `lex` so higher = more relevant.
-
-Dedup by name (lowest tier wins), then sort tier → similarity → `ln(downloads_4w+1)` → name, cap 20. Supporting indexes are declared in `src/schema.ts` (btree `text_pattern_ops`, GIN `gin_trgm_ops`, `lakebase_bm25` on the generated `search_tsv` column).
+A single BM25 query over `search_tsv` (name+summary+keywords, simple+english) via `<@>`/`to_bm25query` against `idx_packages_search_bm25`. The `<@>` operator returns the negative BM25 score, so `ORDER BY score` ascending returns most-relevant-first; matches are docs with `score < 0`. The `lakebase_bm25` index is created with `default_limit = 100`, so Block-Max WAND top-K pushdown scans at most the top 100 candidates; those are then re-ranked and capped at 20. Re-rank order: exact name match first (case- and diacritic-insensitive via `lower(unaccent(...))`), then `downloads_4w` descending, then BM25 score. Results include `downloads_4w`. The `unaccent` extension is enabled in migration 0007. Supporting indexes are declared in `src/schema.ts` (btree `text_pattern_ops`, GIN `gin_trgm_ops`, `lakebase_bm25` on the generated `search_tsv` column).
 
 ## Local dev / environment
 

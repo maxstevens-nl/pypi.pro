@@ -50,6 +50,13 @@
       "when": 1786194551569,
       "tag": "0006_elite_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786196164788,
+      "tag": "0007_medical_overlord",
+      "breakpoints": true
     }
   ]
 }

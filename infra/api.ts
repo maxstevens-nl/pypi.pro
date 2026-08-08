@@ -1,10 +1,9 @@
-import { hyperdrive, database } from "./database";
+import { database } from "./database";
 import { migrate } from "./migrate";
 
 export const searchApi = new sst.cloudflare.Worker("Search", {
   handler: "src/worker.ts",
   url: true,
-  link: [hyperdrive],
   environment: {
     DATABASE_URL: database.properties.connectionString,
   },
@@ -33,7 +32,10 @@ new sst.cloudflare.Cron("DailyRefresh", {
   schedules: ["0 7 * * *"],
   worker: {
     handler: "src/cron.ts",
-    link: [hyperdrive, gcpKey, gcpConfig],
+    link: [gcpKey, gcpConfig],
+    environment: {
+      DATABASE_URL: database.properties.connectionString,
+    },
     compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
   },
 }, { dependsOn: [migrate] });

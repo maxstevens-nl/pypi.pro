@@ -6,7 +6,7 @@ import { upsertPackages, type PackageMetadata } from "./db/package-upsert";
 export default {
   async scheduled(
     _event: ScheduledEvent,
-    _env: unknown,
+    env: Env,
     ctx: ExecutionContext,
   ) {
     const key = JSON.parse(Resource.GcpServiceAccountKey.value);
@@ -39,7 +39,7 @@ export default {
     `);
 
     const client = new Client({
-      connectionString: Resource.Database.connectionString,
+      connectionString: env.DATABASE_URL,
     });
     await client.connect();
 

@@ -37,7 +37,7 @@ export const packages = pgTable(
     ),
     index("idx_packages_search_bm25")
       .using("lakebase_bm25", t.searchTsv)
-      .with({ default_limit: 20 }),
+      .with({ default_limit: 100 }),
   ],
 );
 

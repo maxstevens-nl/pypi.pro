@@ -1,60 +1,33 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "./db";
-import { buildSearchQuery } from "./query";
 
 type SearchRow = {
   name: string;
   summary: string | null;
   version: string | null;
+  downloads_4w: number | string | null;
 };
 
 export async function search(db: Db, q: string) {
   const raw = q.trim().toLowerCase();
   if (raw.length < 1) return { hits: [] };
 
-  const { prefixPattern, needsTrgm, needsFts } = buildSearchQuery(raw);
-
   const bm25Score = sql`search_tsv <@> to_bm25query(to_tsvector('simple', ${raw}), 'idx_packages_search_bm25')`;
 
   const result = await db.execute(sql`
-    WITH
-    prefix AS (
-      SELECT name, summary, version, downloads_4w, 1 AS tier, 1.0::real AS lex
+    WITH candidates AS (
+      SELECT name, summary, version, downloads_4w, ${bm25Score} AS score
       FROM packages
-      WHERE lower(name) LIKE ${prefixPattern}
-      ORDER BY (lower(name) = ${raw}) DESC, downloads_4w DESC NULLS LAST, name
-      LIMIT 10
-    ),
-    fuzzy AS (
-      SELECT name, summary, version, downloads_4w, 2 AS tier, similarity(lower(name), ${raw}) AS lex
-      FROM packages
-      WHERE lower(name) % ${raw} AND ${needsTrgm}
-      ORDER BY lower(name) <-> ${raw}
-      LIMIT 10
-    ),
-    fts AS (
-      SELECT name, summary, version, downloads_4w, 3 AS tier,
-             -1 * ${bm25Score} AS lex
-      FROM packages
-      WHERE ${bm25Score} < 0 AND ${needsFts}
+      WHERE ${bm25Score} < 0
       ORDER BY ${bm25Score}
-      LIMIT 10
-    ),
-    union_all AS (
-      SELECT * FROM prefix
-      UNION ALL
-      SELECT * FROM fuzzy
-      UNION ALL
-      SELECT * FROM fts
-    ),
-    dedup AS (
-      SELECT DISTINCT ON (name) *
-      FROM union_all
-      ORDER BY name, tier, lex DESC
+      LIMIT 100
     )
-    SELECT name, summary, version
-    FROM dedup
-    ORDER BY tier, lex DESC, ln(coalesce(downloads_4w, 0) + 1) DESC, name
+    SELECT name, summary, version, downloads_4w
+    FROM candidates
+    ORDER BY
+      (lower(unaccent(name)) = lower(unaccent(${raw}))) DESC,
+      downloads_4w DESC NULLS LAST,
+      score
     LIMIT 20
   `);
 

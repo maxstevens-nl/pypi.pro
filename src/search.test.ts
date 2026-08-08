@@ -33,9 +33,9 @@ describe("search", () => {
     expect(executed.length).toBe(1);
   });
 
-  test("returns typed rows", async () => {
+  test("returns typed rows including downloads_4w", async () => {
     const hits = [
-      { name: "django", summary: "A web framework", version: "5.0" },
+      { name: "django", summary: "A web framework", version: "5.0", downloads_4w: 123 },
     ];
     const db = {
       execute() {
@@ -47,7 +47,7 @@ describe("search", () => {
     expect(result.hits).toEqual(hits);
   });
 
-  test("lowercases input", async () => {
+  test("lowercases input before building the query", async () => {
     const params: unknown[] = [];
     const db = {
       execute(query: unknown) {
@@ -58,10 +58,10 @@ describe("search", () => {
 
     await search(db, "DJANGO");
     const { params: values } = dialect.sqlToQuery(params[0] as never);
-    expect(values).toContain("django%");
+    expect(values).toContain("django");
   });
 
-  test("single char disables trgm and fts legs in query", async () => {
+  test("uses only the BM25 index, no prefix or trigram legs", async () => {
     const params: unknown[] = [];
     const db = {
       execute(query: unknown) {
@@ -70,8 +70,27 @@ describe("search", () => {
       },
     } as unknown as Db;
 
-    await search(db, "a");
-    const { params: values } = dialect.sqlToQuery(params[0] as never);
-    expect(values).toContain(false);
+    await search(db, "django");
+    const { sql: rendered } = dialect.sqlToQuery(params[0] as never);
+    expect(rendered).toContain("to_bm25query");
+    expect(rendered).not.toContain("LIKE");
+    expect(rendered).not.toContain("similarity");
+  });
+
+  test("re-ranks by exact match (case/diacritic-insensitive) then downloads", async () => {
+    const params: unknown[] = [];
+    const db = {
+      execute(query: unknown) {
+        params.push(query);
+        return Promise.resolve([]);
+      },
+    } as unknown as Db;
+
+    await search(db, "django");
+    const { sql: rendered } = dialect.sqlToQuery(params[0] as never);
+    expect(rendered).toContain("unaccent");
+    expect(rendered).toContain("downloads_4w DESC NULLS LAST");
+    expect(rendered).toContain("LIMIT 100");
+    expect(rendered).toContain("LIMIT 20");
   });
 });
