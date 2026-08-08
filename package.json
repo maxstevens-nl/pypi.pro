@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "sst dev",
-    "dev:api": "wrangler dev --config wrangler.dev.toml --local --port 8787",
     "deploy": "sst deploy --stage prod",
     "test": "bun test",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.app.json",
@@ -13,6 +12,7 @@
     "db:seed:local": "bun scripts/seed-local.ts",
     "db:seed:snapshot": "bun scripts/seed-snapshot.ts",
     "db:seed:bigquery": "bun scripts/seed-bigquery.ts",
+    "db:enable-lakebase": "bun scripts/enable-lakebase.ts",
     "db:migrate": "bun src/migrate.ts",
     "db:generate": "drizzle-kit generate --dialect=postgresql --schema=src/schema.ts --out=./drizzle"
   },

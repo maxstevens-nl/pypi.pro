@@ -43,6 +43,13 @@
       "when": 1786190490489,
       "tag": "0005_abnormal_zarek",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786194551569,
+      "tag": "0006_elite_true_believers",
+      "breakpoints": true
     }
   ]
 }

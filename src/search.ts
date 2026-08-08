@@ -12,7 +12,9 @@ export async function search(db: Db, q: string) {
   const raw = q.trim().toLowerCase();
   if (raw.length < 1) return { hits: [] };
 
-  const { prefixPattern, needsTrgm, needsFts, tsQueryParam } = buildSearchQuery(raw);
+  const { prefixPattern, needsTrgm, needsFts } = buildSearchQuery(raw);
+
+  const bm25Score = sql`search_tsv <@> to_bm25query(to_tsvector('simple', ${raw}), 'idx_packages_search_bm25')`;
 
   const result = await db.execute(sql`
     WITH
@@ -32,13 +34,10 @@ export async function search(db: Db, q: string) {
     ),
     fts AS (
       SELECT name, summary, version, downloads_4w, 3 AS tier,
-             (ts_rank(search_tsv, to_tsquery('simple', ${tsQueryParam}), 32)
-              + ts_rank(search_tsv, to_tsquery('english', ${tsQueryParam}), 32)) AS lex
+             -1 * ${bm25Score} AS lex
       FROM packages
-      WHERE search_tsv @@ (to_tsquery('simple', ${tsQueryParam}) || to_tsquery('english', ${tsQueryParam}))
-        AND ${needsFts}
-      ORDER BY (ts_rank(search_tsv, to_tsquery('simple', ${tsQueryParam}), 32)
-                + ts_rank(search_tsv, to_tsquery('english', ${tsQueryParam}), 32)) DESC
+      WHERE ${bm25Score} < 0 AND ${needsFts}
+      ORDER BY ${bm25Score}
       LIMIT 10
     ),
     union_all AS (

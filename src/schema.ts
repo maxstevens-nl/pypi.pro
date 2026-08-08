@@ -35,7 +35,9 @@ export const packages = pgTable(
       "gin",
       sql`lower(${t.name}) gin_trgm_ops`,
     ),
-    index("idx_packages_search_tsv").using("gin", t.searchTsv),
+    index("idx_packages_search_bm25")
+      .using("lakebase_bm25", t.searchTsv)
+      .with({ default_limit: 20 }),
   ],
 );
 
