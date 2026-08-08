@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sanitizeFtsTerm, buildSearchQuery } from "../src/query";
+import { sanitizeFtsTerm, buildSearchQuery } from "./query";
 
 describe("sanitizeFtsTerm", () => {
   test("empty string returns empty quoted string", () => {
@@ -53,19 +53,46 @@ describe("sanitizeFtsTerm", () => {
 });
 
 describe("buildSearchQuery", () => {
-  test("empty string", () => {
+  test("empty string disables trgm and fts legs", () => {
     const result = buildSearchQuery("");
-    expect(result.term).toBe('""');
-    expect(result.isPrefix).toBe(false);
+    expect(result.prefixPattern).toBe("%");
+    expect(result.needsTrgm).toBe(false);
+    expect(result.needsFts).toBe(false);
+    expect(result.tsQueryParam).toBe('""');
   });
 
-  test("single char", () => {
+  test("single char disables trgm and fts", () => {
     const result = buildSearchQuery("a");
-    expect(result.isPrefix).toBe(false);
+    expect(result.prefixPattern).toBe("a%");
+    expect(result.needsTrgm).toBe(false);
+    expect(result.needsFts).toBe(false);
   });
 
-  test("two chars", () => {
-    const result = buildSearchQuery("ab");
-    expect(result.isPrefix).toBe(true);
+  test("three chars enables trgm and fts", () => {
+    const result = buildSearchQuery("abc");
+    expect(result.prefixPattern).toBe("abc%");
+    expect(result.needsTrgm).toBe(true);
+    expect(result.needsFts).toBe(true);
+    expect(result.tsQueryParam).toBe('"abc":*');
+  });
+
+  test("single-term query adds prefix wildcard", () => {
+    const result = buildSearchQuery("django");
+    expect(result.tsQueryParam).toBe('"django":*');
+  });
+
+  test("multi-term query joins with & and prefixes last term", () => {
+    const result = buildSearchQuery("http requests");
+    expect(result.tsQueryParam).toBe('"http" & "requests":*');
+  });
+
+  test("strips dangerous characters before building tsquery", () => {
+    const result = buildSearchQuery('a"b');
+    expect(result.tsQueryParam).toBe('"a" & "b":*');
+  });
+
+  test("handles three terms", () => {
+    const result = buildSearchQuery("data science toolkit");
+    expect(result.tsQueryParam).toBe('"data" & "science" & "toolkit":*');
   });
 });

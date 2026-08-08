@@ -1,73 +1,63 @@
 import { sql } from "drizzle-orm";
-import { packages } from "./schema";
 import type { Db } from "./db";
+import { buildSearchQuery } from "./query";
 
-interface SearchRow {
+type SearchRow = {
   name: string;
   summary: string | null;
   version: string | null;
-}
-
-interface RawRow extends SearchRow {
-  score?: number;
-}
-
-const selectColumns = {
-  name: packages.name,
-  summary: packages.summary,
-  version: packages.version,
-} as const;
+};
 
 export async function search(db: Db, q: string) {
   const raw = q.trim().toLowerCase();
   if (raw.length < 1) return { hits: [] };
 
-  const pattern = `${raw}%`;
-  const normalizedName = sql`lower(${packages.name})`;
+  const { prefixPattern, needsTrgm, needsFts, tsQueryParam } = buildSearchQuery(raw);
 
-  const prefixRows = await db
-    .select({
-      ...selectColumns,
-    })
-    .from(packages)
-    .where(sql`${normalizedName} LIKE ${pattern}`)
-    .orderBy(sql`${normalizedName} = ${raw} DESC`, packages.name)
-    .limit(20);
+  const rows = (await db.execute(sql`
+    WITH
+    prefix AS (
+      SELECT name, summary, version, downloads_4w, 1 AS tier, 1.0::real AS lex
+      FROM packages
+      WHERE lower(name) LIKE ${prefixPattern}
+      ORDER BY (lower(name) = ${raw}) DESC, downloads_4w DESC NULLS LAST, name
+      LIMIT 10
+    ),
+    fuzzy AS (
+      SELECT name, summary, version, downloads_4w, 2 AS tier, similarity(lower(name), ${raw}) AS lex
+      FROM packages
+      WHERE lower(name) % ${raw} AND ${needsTrgm}
+      ORDER BY lower(name) <-> ${raw}
+      LIMIT 10
+    ),
+    fts AS (
+      SELECT name, summary, version, downloads_4w, 3 AS tier,
+             (ts_rank(search_tsv, to_tsquery('simple', ${tsQueryParam}), 32)
+              + ts_rank(search_tsv, to_tsquery('english', ${tsQueryParam}), 32)) AS lex
+      FROM packages
+      WHERE search_tsv @@ (to_tsquery('simple', ${tsQueryParam}) || to_tsquery('english', ${tsQueryParam}))
+        AND ${needsFts}
+      ORDER BY (ts_rank(search_tsv, to_tsquery('simple', ${tsQueryParam}), 32)
+                + ts_rank(search_tsv, to_tsquery('english', ${tsQueryParam}), 32)) DESC
+      LIMIT 10
+    ),
+    union_all AS (
+      SELECT * FROM prefix
+      UNION ALL
+      SELECT * FROM fuzzy
+      UNION ALL
+      SELECT * FROM fts
+    ),
+    dedup AS (
+      SELECT DISTINCT ON (name) *
+      FROM union_all
+      ORDER BY name, tier, lex DESC
+    )
+    SELECT name, summary, version
+    FROM dedup
+    ORDER BY tier, lex DESC, ln(coalesce(downloads_4w, 0) + 1) DESC, name
+    LIMIT 20
+  `)) as unknown as SearchRow[];
 
-  if (prefixRows.length >= 5 || raw.length < 3) {
-    return { hits: prefixRows as SearchRow[] };
-  }
-
-  let fuzzyRows: unknown[];
-  try {
-    fuzzyRows = await db
-      .select({
-        ...selectColumns,
-        score: sql<number>`similarity(${normalizedName}, ${raw})`,
-      })
-      .from(packages)
-      .where(sql`${normalizedName} % ${raw}`)
-      .orderBy(sql`similarity(${normalizedName}, ${raw}) DESC`, packages.name)
-      .limit(20);
-  } catch (error) {
-    console.log(
-      JSON.stringify({
-        level: "warn",
-        event: "fuzzy_search_unavailable",
-        query: raw,
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
-    return { hits: prefixRows as SearchRow[] };
-  }
-
-  const seen = new Set(prefixRows.map((row) => row.name));
-  const hits: SearchRow[] = [
-    ...(prefixRows as SearchRow[]),
-    ...(fuzzyRows as RawRow[])
-      .filter((row) => !seen.has(row.name))
-      .map(({ score: _score, ...row }) => row),
-  ].slice(0, 20);
-
-  return { hits };
+  return { hits: rows };
 }

@@ -11,11 +11,36 @@ export function sanitizeFtsTerm(input: string): string {
     .join(" ");
 }
 
-export function buildSearchQuery(raw: string): { term: string; isPrefix: boolean } {
-  if (!raw.trim()) {
-    return { term: '""', isPrefix: false };
+export function buildSearchQuery(raw: string): {
+  prefixPattern: string;
+  needsTrgm: boolean;
+  needsFts: boolean;
+  tsQueryParam: string;
+} {
+  const cleaned = sanitizeFtsTerm(raw);
+
+  if (!cleaned || cleaned === '""') {
+    return {
+      prefixPattern: `${raw}%`,
+      needsTrgm: false,
+      needsFts: false,
+      tsQueryParam: '""',
+    };
   }
-  const term = sanitizeFtsTerm(raw);
-  const isPrefix = raw.length >= 2;
-  return { term, isPrefix };
+
+  const terms = cleaned.split(" ");
+  const tsQueryParam =
+    terms.length === 1
+      ? `${terms[0]}:*`
+      : `${terms.slice(0, -1).join(" & ")} & ${terms[terms.length - 1]}:*`;
+
+  const needsTrgm = raw.length >= 3;
+  const needsFts = raw.length >= 3;
+
+  return {
+    prefixPattern: `${raw}%`,
+    needsTrgm,
+    needsFts,
+    tsQueryParam,
+  };
 }

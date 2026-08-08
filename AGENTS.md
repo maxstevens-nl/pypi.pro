@@ -3,7 +3,7 @@
 ## Commands
 
 ```bash
-bun test                          # tests (test/query.test.ts)
+bun test                          # tests
 bun run typecheck                 # tsc --noEmit (sky, sst-env.d.ts included)
 bun run lint                      # oxlint (config in .oxlintrc.json)
 bun run dev                       # local Cloudflare simulation (via `bun run dev`)
@@ -23,6 +23,9 @@ bun run db:migrate
 bun run db:seed:local
 bun run db:seed:bigquery
 bun run db:seed:snapshot
+
+# Backfill download counts from hugovk snapshot (after schema migration)
+bun scripts/backfill-downloads.ts
 
 # Tear down the local Postgres volume (nuclear option; requires re-seed after)
 docker compose down -v
@@ -50,28 +53,29 @@ After the first `bun run dev`, the database may be empty. Migrations only create
 
 `db.localtest.me` is a public DNS name that always resolves to `127.0.0.1` (wildcard `*.localtest.me`), avoiding the need to edit `/etc/hosts`. If you need to work fully offline, add `127.0.0.1 db.localtest.me` to `/etc/hosts`.
 
-The schema (`schema.sql`) is mounted into the Postgres container as `docker-entrypoint-initdb.d/01-schema.sql`, so it runs automatically on a fresh volume.
-
 ## Neon Postgres database
 
 Storage is **Neon Postgres** (serverless) in production, **local Postgres 17 via the Neon HTTP proxy** in dev. The connection string lives in `.env` as `DATABASE_URL` and is propagated to every Worker/Cron/Consumer via `environment` in `sst.config.ts` (read from `process.env` at config time). No SST-managed resource is created — Neon projects / local Docker are provisioned out-of-band and referenced by URL.
 
 ## Architecture
 
-Infrastructure: Workers + R2 (`Snapshots` bucket) + Queue (`Ingest`), all on Cloudflare. Storage is Neon Postgres (external). Resources are composed through `infra/app.ts`.
+Infrastructure: Worker (search API + static assets) + Cron (daily BigQuery refresh). Storage is Neon Postgres (external). Resources are composed through `infra/app.ts`.
 
 Worker entry `src/worker.ts` routes:
 
 - `GET  /api/search?q=` — search
-- `POST /ingest` — insert records (queue consumer path is `src/consumer.ts`)
-- `POST /bootstrap` — pull `snapshot.ndjson` from R2 `Snapshots` bucket → `ingest` into Neon
-- `GET  /health`
+- `GET  /search` → redirects to `/?q=...`
 
 Search behavior (`src/search.ts`):
 
-- Prefix `LIKE 'q%'` match first; if <5 hits and query length ≥3, falls back to `pg_trgm` similarity
-- Exact name match always promoted to position 0
-- Results capped at 20, ordered by exact name match then name
+- Single-query tiered ranking:
+  1. Exact name match (tier 0)
+  2. Prefix `LIKE 'q%'` match (tier 1) — uses btree `text_pattern_ops` index
+  3. Trigram fuzzy name match (tier 2) — uses GIN `gin_trgm_ops` index with k-NN `<->` ordering
+  4. Full-text match over name+summary+keywords (tier 3) — uses GIN `search_tsv` index
+- Tiers 2-3 are disabled for queries shorter than 3 characters
+- Within tiers, results sort by: tier → relevance score → `ln(downloads_4w+1)` → name
+- Results capped at 20, duplicates deduplicated across tiers (lowest tier wins)
 
 Data source for snapshots: `hugovk/top-pypi-packages` 30-day JSON, enriched via per-package `pypi.org/pypi/<name>/json`.
 

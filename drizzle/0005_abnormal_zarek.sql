@@ -1,0 +1,3 @@
+ALTER TABLE "packages" ADD COLUMN "downloads_4w" bigint;--> statement-breakpoint
+ALTER TABLE "packages" ADD COLUMN "search_tsv" "tsvector" GENERATED ALWAYS AS (setweight(to_tsvector('simple', coalesce(name, '')), 'A') || setweight(to_tsvector('english', coalesce(summary, '')), 'B') || setweight(to_tsvector('simple', coalesce(keywords, '')), 'C')) STORED;--> statement-breakpoint
+CREATE INDEX "idx_packages_search_tsv" ON "packages" USING gin ("search_tsv");

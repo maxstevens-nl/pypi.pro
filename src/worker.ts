@@ -1,7 +1,5 @@
 import { search } from "./search";
-import { Resource } from "sst";
-import { Client } from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { getNeonHttpDb } from "./db";
 
 export default {
   async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -25,7 +23,7 @@ export default {
       let response: Response;
 
       if (url.pathname === "/api/search") {
-        response = await handleSearch(url, requestId);
+        response = await handleSearch(url, requestId, env);
       } else if (url.pathname === "/search" || url.pathname.startsWith("/search/")) {
         response = Response.redirect(
           new URL(`/?${url.searchParams.toString()}`, url.origin).toString(),
@@ -56,7 +54,7 @@ export default {
           requestId,
           path: url.pathname,
           query: url.searchParams.get("q"),
-          connection: "request-scoped",
+          connection: "neon-http",
           ...errorDetails(error),
           duration,
         }),
@@ -72,25 +70,26 @@ export default {
   },
 };
 
-async function handleSearch(url: URL, requestId: string): Promise<Response> {
+async function handleSearch(url: URL, requestId: string, env: Env): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
-  const client = new Client({
-    connectionString: Resource.Database.connectionString,
+
+  const headers = new Headers({
+    "content-type": "application/json",
+    "access-control-allow-origin": "*",
+    "cache-control": "public, max-age=60, s-maxage=300, stale-while-revalidate=60",
   });
 
-  try {
-    await client.connect();
-    const db = drizzle(client, { schema: await import("./schema") });
-    const result = q ? await search(db, q) : { hits: [] as SearchResult["hits"] };
+  if (!q) {
+    headers.set("x-request-id", requestId);
+    return new Response(JSON.stringify({ hits: [] }), { headers });
+  }
 
-    return new Response(JSON.stringify(result), {
-      headers: {
-        "content-type": "application/json",
-        "access-control-allow-origin": "*",
-        "cache-control": "public, max-age=60, s-maxage=300, stale-while-revalidate=60",
-        "x-request-id": requestId,
-      },
-    });
+  try {
+    const db = getNeonHttpDb(env);
+    const result = await search(db, q);
+
+    headers.set("x-request-id", requestId);
+    return new Response(JSON.stringify(result), { headers });
   } catch (error) {
     console.log(
       JSON.stringify({
@@ -98,15 +97,13 @@ async function handleSearch(url: URL, requestId: string): Promise<Response> {
         event: "search_query_failed",
         requestId,
         query: q,
-        connection: "request-scoped",
+        connection: "neon-http",
         ...errorDetails(error),
       }),
     );
     throw error;
   }
 }
-
-type SearchResult = Awaited<ReturnType<typeof search>>;
 
 function errorDetails(error: unknown): Record<string, unknown> {
   if (!(error instanceof Error)) {

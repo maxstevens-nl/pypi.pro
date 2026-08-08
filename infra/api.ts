@@ -1,4 +1,5 @@
 import { hyperdrive } from "./database";
+import { migrate } from "./migrate";
 
 export const searchApi = new sst.cloudflare.Worker("Search", {
   handler: "src/worker.ts",
@@ -13,7 +14,7 @@ export const searchApi = new sst.cloudflare.Worker("Search", {
       observability: { enabled: true },
     },
   },
-});
+}, { dependsOn: [migrate] });
 
 export const searchScriptName = searchApi.nodes.worker.scriptName;
 
@@ -32,4 +33,4 @@ new sst.cloudflare.Cron("DailyRefresh", {
     link: [hyperdrive, gcpKey, gcpConfig],
     compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
   },
-});
+}, { dependsOn: [migrate] });

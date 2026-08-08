@@ -14,14 +14,15 @@ export type PackageMetadata = {
   requires_python: string | null;
   keywords: string | null;
   home_page: string | null;
+  downloads_4w?: number;
   updated_at: number;
 };
 
 const columns =
-  "name, version, summary, description, author, license, classifiers, requires_python, keywords, home_page, updated_at";
+  "name, version, summary, description, author, license, classifiers, requires_python, keywords, home_page, updated_at, downloads_4w";
 
-function csvField(value: string | number | null): string {
-  if (value === null) return "\\N";
+function csvField(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "\\N";
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
@@ -45,6 +46,7 @@ function csvRow(row: PackageMetadata): string {
     row.keywords,
     row.home_page,
     row.updated_at,
+    row.downloads_4w,
   ]
     .map(csvField)
     .join(",");
@@ -78,7 +80,8 @@ export async function copyUpsertPackages(
          requires_python = EXCLUDED.requires_python,
          keywords = EXCLUDED.keywords,
          home_page = EXCLUDED.home_page,
-         updated_at = EXCLUDED.updated_at`,
+         updated_at = EXCLUDED.updated_at,
+         downloads_4w = CASE WHEN EXCLUDED.downloads_4w > 0 THEN EXCLUDED.downloads_4w ELSE packages.downloads_4w END`,
     );
     await client.query("COMMIT");
   } catch (error) {
@@ -93,31 +96,32 @@ export async function upsertPackages(
 ): Promise<void> {
   if (rows.length === 0) return;
 
-  const values: unknown[] = [];
-  const placeholders = rows.map((row, rowIndex) => {
-    const offset = rowIndex * 11;
-    values.push(
-      row.name,
-      row.version,
-      row.summary,
-      row.description,
-      row.author,
-      row.license,
-      row.classifiers,
-      row.requires_python,
-      row.keywords,
-      row.home_page,
-      row.updated_at,
-    );
-    return `(${Array.from({ length: 11 }, (_, columnIndex) => `$${offset + columnIndex + 1}`).join(",")})`;
-  });
+    const values: unknown[] = [];
+    const placeholders = rows.map((row, rowIndex) => {
+      const offset = rowIndex * 12;
+      values.push(
+        row.name,
+        row.version,
+        row.summary,
+        row.description,
+        row.author,
+        row.license,
+        row.classifiers,
+        row.requires_python,
+        row.keywords,
+        row.home_page,
+        row.updated_at,
+        row.downloads_4w,
+      );
+      return `(${Array.from({ length: 12 }, (_, columnIndex) => `$${offset + columnIndex + 1}`).join(",")})`;
+    });
 
   await client.query("BEGIN");
   try {
     await client.query(
       `INSERT INTO packages
           (name, version, summary, description, author, license,
-           classifiers, requires_python, keywords, home_page, updated_at)
+           classifiers, requires_python, keywords, home_page, updated_at, downloads_4w)
          VALUES ${placeholders.join(",")}
          ON CONFLICT (name) DO UPDATE SET
            version = EXCLUDED.version,
@@ -129,7 +133,8 @@ export async function upsertPackages(
            requires_python = EXCLUDED.requires_python,
            keywords = EXCLUDED.keywords,
            home_page = EXCLUDED.home_page,
-           updated_at = EXCLUDED.updated_at`,
+           updated_at = EXCLUDED.updated_at,
+           downloads_4w = CASE WHEN EXCLUDED.downloads_4w > 0 THEN EXCLUDED.downloads_4w ELSE packages.downloads_4w END`,
       values,
     );
     await client.query("COMMIT");
