@@ -21,7 +21,14 @@ export const packages = pgTable(
   },
   (t) => [
     index("idx_packages_downloads").on(t.downloads4w),
-    index("idx_packages_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
+    index("idx_packages_name_lower_pattern").using(
+      "btree",
+      sql`lower(${t.name}) text_pattern_ops`,
+    ),
+    index("idx_packages_name_lower_trgm").using(
+      "gin",
+      sql`lower(${t.name}) gin_trgm_ops`,
+    ),
   ],
 );
 

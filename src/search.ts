@@ -10,8 +10,7 @@ interface SearchRow {
 }
 
 interface RawRow extends SearchRow {
-  exact: boolean | null;
-  prefix: boolean | null;
+  score?: number;
 }
 
 const selectColumns = {
@@ -26,31 +25,54 @@ export async function search(db: Db, q: string) {
   if (raw.length < 1) return { hits: [] };
 
   const pattern = `${raw}%`;
-  const useTrigram = raw.length >= 3;
   const normalizedName = sql`lower(${packages.name})`;
 
-  const rows = await db
+  const prefixRows = await db
     .select({
       ...selectColumns,
-      exact: sql<boolean>`${normalizedName} = ${raw}`,
-      prefix: sql<boolean>`${normalizedName} LIKE ${pattern}`,
     })
     .from(packages)
-    .where(
-      sql`${normalizedName} = ${raw}
-          OR ${normalizedName} LIKE ${pattern}
-          OR (${useTrigram ? sql`true` : sql`false`} AND ${normalizedName} % ${raw})`,
-    )
+    .where(sql`${normalizedName} LIKE ${pattern}`)
     .orderBy(
       sql`${normalizedName} = ${raw} DESC`,
-      sql`${normalizedName} LIKE ${pattern} DESC`,
       desc(packages.downloads4w),
     )
     .limit(20);
 
-  const hits: SearchRow[] = (rows as RawRow[]).map(
-    ({ exact: _exact, prefix: _prefix, ...rest }) => rest,
-  );
+  if (prefixRows.length >= 5 || raw.length < 3) {
+    return { hits: prefixRows as SearchRow[] };
+  }
+
+  let fuzzyRows: unknown[];
+  try {
+    fuzzyRows = await db
+      .select({
+        ...selectColumns,
+        score: sql<number>`similarity(${normalizedName}, ${raw})`,
+      })
+      .from(packages)
+      .where(sql`${normalizedName} % ${raw}`)
+      .orderBy(sql`similarity(${normalizedName}, ${raw}) DESC`, desc(packages.downloads4w))
+      .limit(20);
+  } catch (error) {
+    console.log(
+      JSON.stringify({
+        level: "warn",
+        event: "fuzzy_search_unavailable",
+        query: raw,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    return { hits: prefixRows as SearchRow[] };
+  }
+
+  const seen = new Set(prefixRows.map((row) => row.name));
+  const hits: SearchRow[] = [
+    ...(prefixRows as SearchRow[]),
+    ...(fuzzyRows as RawRow[])
+      .filter((row) => !seen.has(row.name))
+      .map(({ score: _score, ...row }) => row),
+  ].slice(0, 20);
 
   return { hits };
 }

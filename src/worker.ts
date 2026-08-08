@@ -2,9 +2,13 @@ import { search } from "./search";
 import { Resource } from "sst";
 import { Client } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import type { Db } from "./db";
+
+let connection: { client: Client; db: Db } | undefined;
+let connecting: Promise<Db> | undefined;
 
 export default {
-  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
     const url = new URL(req.url);
@@ -25,7 +29,7 @@ export default {
       let response: Response;
 
       if (url.pathname === "/api/search") {
-        response = await handleSearch(ctx, url);
+        response = await handleSearch(url);
       } else if (url.pathname === "/search" || url.pathname.startsWith("/search/")) {
         response = Response.redirect(
           new URL(`/?${url.searchParams.toString()}`, url.origin).toString(),
@@ -68,26 +72,70 @@ export default {
   },
 };
 
-async function handleSearch(ctx: ExecutionContext, url: URL): Promise<Response> {
+async function handleSearch(url: URL): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  let result = { hits: [] as SearchResult["hits"] };
 
-  const client = new Client({
-    connectionString: Resource.Database.connectionString,
-  });
-  await client.connect();
-  const db = drizzle(client, { schema: await import("./schema") });
-
-  const result = q ? await search(db, q) : { hits: [] };
-
-  ctx.waitUntil(client.end());
+  if (q) {
+    try {
+      result = await runSearch(q);
+    } catch (error) {
+      console.log(
+        JSON.stringify({
+          level: "error",
+          event: "search_query_failed",
+          query: q,
+          error: error instanceof Error ? error.message : String(error),
+          cause:
+            error instanceof Error && error.cause instanceof Error
+              ? error.cause.message
+              : undefined,
+        }),
+      );
+      resetConnection();
+      result = await runSearch(q);
+    }
+  }
 
   return new Response(JSON.stringify(result), {
     headers: {
       "content-type": "application/json",
       "access-control-allow-origin": "*",
-      "cache-control": "public, max-age=0, s-maxage=300, must-revalidate",
+      "cache-control": "public, max-age=60, s-maxage=300, stale-while-revalidate=60",
     },
   });
 }
 
+async function getDb(): Promise<Db> {
+  if (connection) return connection.db;
+  if (!connecting) {
+    const client = new Client({
+      connectionString: Resource.Database.connectionString,
+    });
+    connecting = client
+      .connect()
+      .then(async () => {
+        const db = drizzle(client, { schema: await import("./schema") });
+        connection = { client, db };
+        return db;
+      })
+      .catch((error) => {
+        connecting = undefined;
+        throw error;
+      });
+  }
+  return connecting;
+}
 
+async function runSearch(q: string): Promise<SearchResult> {
+  return search(await getDb(), q);
+}
+
+function resetConnection() {
+  const client = connection?.client;
+  connection = undefined;
+  connecting = undefined;
+  if (client) void client.end().catch(() => undefined);
+}
+
+type SearchResult = Awaited<ReturnType<typeof search>>;

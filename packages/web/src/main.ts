@@ -3,6 +3,7 @@ const list = document.querySelector<HTMLUListElement>("#results")!;
 
 let selectedIndex = -1;
 let searchToken = 0;
+const searchCache = new Map<string, any[]>();
 
 input.focus();
 
@@ -19,31 +20,40 @@ input.addEventListener("input", () => {
   selectedIndex = -1;
   const q = input.value.trim();
   updateUrl(q);
-  void search(q);
+  void startSearch(q);
 });
 
 const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
 input.value = initialQuery;
-void search(initialQuery);
+void startSearch(initialQuery);
 
-async function search(q: string) {
+async function startSearch(q: string) {
   const token = ++searchToken;
   if (!q) {
     list.innerHTML = "";
-    void ping();
     return;
   }
-  const base = import.meta.env.VITE_API_URL ?? "";
-  const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);
-  if (token !== searchToken) return;
-  const { hits } = await res.json();
-  if (token !== searchToken) return;
-  renderResults(hits);
-}
 
-async function ping() {
+  const key = q.toLowerCase();
+  const cached = searchCache.get(key);
+  if (cached) {
+    renderResults(cached);
+    return;
+  }
+
   const base = import.meta.env.VITE_API_URL ?? "";
-  await fetch(`${base}/api/search?q=`);
+  try {
+    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) throw new Error(`Search request failed with HTTP ${res.status}`);
+    if (token !== searchToken) return;
+    const { hits } = await res.json();
+    if (token !== searchToken) return;
+    searchCache.set(key, hits);
+    if (searchCache.size > 100) searchCache.delete(searchCache.keys().next().value!);
+    renderResults(hits);
+  } catch (error) {
+    console.error("Search request failed", error);
+  }
 }
 
 function updateUrl(q: string) {
