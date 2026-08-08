@@ -1,10 +1,13 @@
-import { hyperdrive } from "./database";
+import { hyperdrive, database } from "./database";
 import { migrate } from "./migrate";
 
 export const searchApi = new sst.cloudflare.Worker("Search", {
   handler: "src/worker.ts",
   url: true,
   link: [hyperdrive],
+  environment: {
+    DATABASE_URL: database.properties.connectionString,
+  },
   compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
   placement: {
     region: "aws:eu-central-1",

@@ -3,8 +3,8 @@ const list = document.querySelector<HTMLUListElement>("#results")!;
 
 let selectedIndex = -1;
 let searchToken = 0;
-let debounceTimer: ReturnType<typeof setTimeout>;
-const activeControllers = new Set<AbortController>();
+let lastRenderedToken = 0;
+const pendingControllers = new Map<number, AbortController>();
 const searchCache = new Map<string, any[]>();
 
 input.focus();
@@ -19,11 +19,15 @@ document.addEventListener("keydown", (e) => {
 });
 
 input.addEventListener("input", () => {
-  clearTimeout(debounceTimer);
+  ++searchToken;
   selectedIndex = -1;
   const q = input.value.trim();
   updateUrl(q);
-  debounceTimer = setTimeout(() => startSearch(q), 75);
+  if (!q) {
+    list.innerHTML = "";
+    return;
+  }
+  startSearch(q);
 });
 
 const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
@@ -33,40 +37,36 @@ if (initialQuery) {
 }
 
 async function startSearch(q: string) {
-  const token = ++searchToken;
-  if (!q) {
-    list.innerHTML = "";
-    return;
-  }
+  const token = searchToken;
+  const controller = new AbortController();
+  pendingControllers.set(token, controller);
 
   const key = q.toLowerCase();
   const cached = searchCache.get(key);
   if (cached) {
     renderResults(cached);
-    activeControllers.forEach((c) => c.abort());
-    activeControllers.clear();
     return;
   }
 
-  const controller = new AbortController();
-  const signal = controller.signal;
-  activeControllers.add(controller);
-
   const base = import.meta.env.VITE_API_URL ?? "";
   try {
-    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`, { signal });
+    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
     if (!res.ok) throw new Error(`Search request failed with HTTP ${res.status}`);
-    if (token !== searchToken) return;
+    if (token < lastRenderedToken) return;
     const { hits } = await res.json();
-    if (token !== searchToken) return;
+    if (token < lastRenderedToken) return;
+    for (const [t, c] of pendingControllers) {
+      if (t < token) c.abort();
+    }
+    lastRenderedToken = token;
     searchCache.set(key, hits);
     if (searchCache.size > 100) searchCache.delete(searchCache.keys().next().value!);
     renderResults(hits);
-    activeControllers.forEach((c) => { if (c !== controller) c.abort(); });
-    activeControllers.clear();
   } catch (error: any) {
     if (error?.name === "AbortError") return;
     console.error("Search request failed", error);
+  } finally {
+    pendingControllers.delete(token);
   }
 }
 

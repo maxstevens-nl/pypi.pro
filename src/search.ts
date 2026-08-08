@@ -14,7 +14,7 @@ export async function search(db: Db, q: string) {
 
   const { prefixPattern, needsTrgm, needsFts, tsQueryParam } = buildSearchQuery(raw);
 
-  const rows = (await db.execute(sql`
+  const result = await db.execute(sql`
     WITH
     prefix AS (
       SELECT name, summary, version, downloads_4w, 1 AS tier, 1.0::real AS lex
@@ -57,7 +57,17 @@ export async function search(db: Db, q: string) {
     FROM dedup
     ORDER BY tier, lex DESC, ln(coalesce(downloads_4w, 0) + 1) DESC, name
     LIMIT 20
-  `)) as unknown as SearchRow[];
+  `);
+
+  const rows: SearchRow[] = extractRows(result);
 
   return { hits: rows };
+}
+
+function extractRows(result: unknown): SearchRow[] {
+  if (Array.isArray(result)) return result as SearchRow[];
+  if (result && typeof result === "object" && "rows" in result) {
+    return (result as { rows: SearchRow[] }).rows;
+  }
+  return [];
 }

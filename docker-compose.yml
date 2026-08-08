@@ -9,8 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: main
     volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -29,3 +28,4 @@ services:
 
 volumes:
   db_data:
+    name: pypipro_db_data18
