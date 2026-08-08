@@ -77,7 +77,7 @@ describe("search", () => {
     expect(rendered).not.toContain("similarity");
   });
 
-  test("re-ranks by exact match (case/diacritic-insensitive) then downloads", async () => {
+  test("re-ranks by normalized exact match then downloads", async () => {
     const params: unknown[] = [];
     const db = {
       execute(query: unknown) {
@@ -88,9 +88,23 @@ describe("search", () => {
 
     await search(db, "django");
     const { sql: rendered } = dialect.sqlToQuery(params[0] as never);
-    expect(rendered).toContain("unaccent");
+    expect(rendered).toContain("normalized_name = ");
     expect(rendered).toContain("downloads_4w DESC NULLS LAST");
     expect(rendered).toContain("LIMIT 100");
     expect(rendered).toContain("LIMIT 20");
+  });
+
+  test("normalizes separators in the query before matching", async () => {
+    const params: unknown[] = [];
+    const db = {
+      execute(query: unknown) {
+        params.push(query);
+        return Promise.resolve([]);
+      },
+    } as unknown as Db;
+
+    await search(db, "Django_Rest-Framework");
+    const { params: values } = dialect.sqlToQuery(params[0] as never);
+    expect(values).toContain("django-rest-framework");
   });
 });

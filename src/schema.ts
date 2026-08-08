@@ -23,7 +23,7 @@ export const packages = pgTable(
     updatedAt: bigint("updated_at", { mode: "number" }),
     downloads4w: bigint("downloads_4w", { mode: "number" }),
     searchTsv: tsvector("search_tsv").generatedAlwaysAs(
-      sql`setweight(to_tsvector('simple', coalesce(name, '')), 'A') || setweight(to_tsvector('english', coalesce(summary, '')), 'B') || setweight(to_tsvector('simple', coalesce(keywords, '')), 'C')`,
+      sql`to_tsvector('simple', lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g')))`,
     ),
     normalizedName: text("normalized_name").generatedAlwaysAs(
       sql`lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g'))`,

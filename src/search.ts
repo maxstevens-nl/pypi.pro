@@ -11,21 +11,41 @@ type SearchRow = {
 export async function search(db: Db, q: string) {
   const raw = q.trim().toLowerCase();
   if (raw.length < 1) return { hits: [] };
+  const normalized = raw.replace(/[-_.]+/g, "-");
 
-  const bm25Score = sql`search_tsv <@> to_bm25query(to_tsvector('simple', ${raw}), 'idx_packages_search_bm25')`;
+  const bm25Score = sql`search_tsv <@> to_bm25query(to_tsvector('simple', ${normalized}), 'idx_packages_search_bm25')`;
 
   const result = await db.execute(sql`
-    WITH candidates AS (
-      SELECT name, summary, version, downloads_4w, ${bm25Score} AS score
+    WITH bm25 AS (
+      SELECT name, summary, version, downloads_4w, normalized_name, ${bm25Score} AS score
       FROM packages
       WHERE ${bm25Score} < 0
       ORDER BY ${bm25Score}
       LIMIT 100
+    ),
+    exact AS (
+      SELECT name, summary, version, downloads_4w, normalized_name, 0::double precision AS score
+      FROM packages
+      WHERE normalized_name = ${normalized}
+      LIMIT 1
+    ),
+    candidates AS (
+      SELECT name, summary, version, downloads_4w, normalized_name, score,
+        ROW_NUMBER() OVER (
+          PARTITION BY name
+          ORDER BY (normalized_name = ${normalized}) DESC, score
+        ) AS rn
+      FROM (
+        SELECT * FROM bm25
+        UNION ALL
+        SELECT * FROM exact
+      ) all_candidates
     )
     SELECT name, summary, version, downloads_4w
     FROM candidates
+    WHERE rn = 1
     ORDER BY
-      (lower(unaccent(name)) = lower(unaccent(${raw}))) DESC,
+      (normalized_name = ${normalized}) DESC,
       downloads_4w DESC NULLS LAST,
       score
     LIMIT 20

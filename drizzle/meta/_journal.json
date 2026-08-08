@@ -64,6 +64,13 @@
       "when": 1786197233955,
       "tag": "0008_amused_saracen",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786198250410,
+      "tag": "0009_light_taskmaster",
+      "breakpoints": true
     }
   ]
 }

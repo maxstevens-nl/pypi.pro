@@ -34,7 +34,7 @@ async function main() {
       `UPDATE packages
        SET downloads_4w = GREATEST(coalesce(downloads_4w, 0), x.count)
        FROM (SELECT unnest($1::text[]) AS name, unnest($2::bigint[]) AS count) x
-       WHERE replace(replace(lower(packages.name), '_', '-'), '.', '-') = x.name`,
+       WHERE packages.normalized_name = x.name`,
       [names, counts],
     );
     console.log(`Updated ${result.rowCount} rows.`);
