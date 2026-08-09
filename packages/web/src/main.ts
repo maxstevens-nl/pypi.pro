@@ -10,11 +10,28 @@ const searchCache = new Map<string, any[]>();
 input.focus();
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "/" && document.activeElement !== input) {
+  if (document.activeElement !== input) {
     const target = e.target as HTMLElement;
-    if (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-    e.preventDefault();
-    input.focus();
+    const key = e.key.toLowerCase();
+    if (e.key === "/") {
+      if (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      e.preventDefault();
+      input.focus();
+      return;
+    }
+    if (key === "ArrowDown" || key === "j") {
+      const items = list.querySelectorAll("li");
+      if (items.length === 0) return;
+      e.preventDefault();
+      selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+      updateSelection(items);
+    } else if (key === "ArrowUp" || key === "k") {
+      const items = list.querySelectorAll("li");
+      if (items.length === 0) return;
+      e.preventDefault();
+      selectedIndex = Math.max(selectedIndex - 1, -1);
+      updateSelection(items);
+    }
   }
 });
 
@@ -96,6 +113,9 @@ input.addEventListener("keydown", (e) => {
     e.preventDefault();
     const link = items[selectedIndex >= 0 ? selectedIndex : 0]?.querySelector("a");
     if (link) (link as HTMLAnchorElement).click();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    input.blur();
   }
 });
 
