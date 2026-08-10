@@ -6,7 +6,7 @@ export const web = new sst.cloudflare.StaticSiteV2("Web", {
     command: "bun run build",
     output: "dist",
   },
-  notFound: "404",
+  notFound: "single-page-application",
   environment: {
     VITE_API_URL: urls.properties.api,
   },

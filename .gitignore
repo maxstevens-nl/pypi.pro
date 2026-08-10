@@ -11,3 +11,4 @@ dist/
 pypi.db
 snapshot.ndjson
 .data
+.playwright-mcp

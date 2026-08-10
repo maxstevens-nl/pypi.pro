@@ -24,6 +24,9 @@ bun scripts/reset-db.ts           # drop public schema + re-run migrations (also
 bun scripts/detect-import-name.ts # resolve a package's import name(s); see scripts/import-name.ts for the algorithm
 bun scripts/detect-import-name-snapshot.ts  # bulk-detect import names from .data/snapshot.ndjson → .data/import-names.csv
 bun scripts/import-import-names.ts # import .data/import-names.csv into packages.import_names (updates ONLY that column; honors DATABASE_URL)
+
+# Benchmarks (local only, no SST session needed)
+bun scripts/bench-parse-keywords.ts [rounds]  # parseKeywords vs naive regex baseline over .data/output.sqlite keywords (~358k rows)
 ```
 
 Gotchas:

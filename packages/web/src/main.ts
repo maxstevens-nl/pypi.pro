@@ -1,5 +1,6 @@
 const input = document.querySelector<HTMLInputElement>("#q")!;
 const list = document.querySelector<HTMLUListElement>("#results")!;
+const pkgEl = document.querySelector<HTMLDivElement>("#package")!;
 
 let selectedIndex = -1;
 let searchToken = 0;
@@ -8,6 +9,60 @@ const pendingControllers = new Map<number, AbortController>();
 const searchCache = new Map<string, any[]>();
 
 input.focus();
+
+const PACKAGE_PATH = /^\/packages\/(.+)$/;
+
+function currentPackageName(): string | null {
+  const match = window.location.pathname.match(PACKAGE_PATH);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function showSearch() {
+  pkgEl.hidden = true;
+  list.hidden = false;
+  input.hidden = false;
+}
+
+function showPackage() {
+  list.hidden = true;
+  input.hidden = true;
+  pkgEl.hidden = false;
+}
+
+function route() {
+  const name = currentPackageName();
+  if (name) {
+    showPackage();
+    renderPackagePage(name);
+  } else {
+    showSearch();
+    restoreSearchFromUrl();
+  }
+}
+
+function restoreSearchFromUrl() {
+  const q = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+  if (q) {
+    input.value = q;
+    startSearch(q);
+  } else {
+    input.value = "";
+    list.innerHTML = "";
+  }
+}
+
+window.addEventListener("popstate", route);
+
+document.addEventListener("click", (e) => {
+  if (e.defaultPrevented || e.button !== 0) return;
+  const target = (e.target as HTMLElement).closest("a");
+  if (!target) return;
+  const url = new URL(target.href, window.location.origin);
+  if (url.origin !== window.location.origin) return;
+  e.preventDefault();
+  window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  route();
+});
 
 document.addEventListener("keydown", (e) => {
   if (document.activeElement !== input) {
@@ -19,13 +74,13 @@ document.addEventListener("keydown", (e) => {
       input.focus();
       return;
     }
-    if (key === "ArrowDown" || key === "j") {
+    if (key === "arrowdown" || key === "j") {
       const items = list.querySelectorAll("li");
       if (items.length === 0) return;
       e.preventDefault();
       selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
       updateSelection(items);
-    } else if (key === "ArrowUp" || key === "k") {
+    } else if (key === "arrowup" || key === "k") {
       const items = list.querySelectorAll("li");
       if (items.length === 0) return;
       e.preventDefault();
@@ -46,12 +101,6 @@ input.addEventListener("input", () => {
   }
   startSearch(q);
 });
-
-const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
-if (initialQuery) {
-  input.value = initialQuery;
-  startSearch(initialQuery);
-}
 
 async function startSearch(q: string) {
   const token = searchToken;
@@ -126,12 +175,18 @@ function updateSelection(items: NodeListOf<HTMLLIElement>) {
   items[selectedIndex]?.scrollIntoView({ block: "nearest" });
 }
 
+function resultHref(name: string): string {
+  const q = input.value.trim();
+  const base = `/packages/${encodeURIComponent(name)}`;
+  return q ? `${base}?q=${encodeURIComponent(q)}` : base;
+}
+
 function renderResults(hits: any[]) {
   list.innerHTML = hits
     .map(
       (h: any) =>
         `<li>
-      <a href="https://pypi.org/project/${escapeHtml(h.name ?? "")}/">
+      <a href="${resultHref(h.name ?? "")}">
         <div class="name-row">
           <strong>${escapeHtml(h.name ?? "")}</strong>
           ${
@@ -151,6 +206,116 @@ function renderResults(hits: any[]) {
     .join("");
 }
 
+async function renderPackagePage(name: string) {
+  const currentQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+  const backHref = currentQuery ? `/?q=${encodeURIComponent(currentQuery)}` : "/";
+  const back = `<a class="pkg-back" href="${backHref}">&larr; Back to search</a>`;
+
+  pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-loading">Loading…</p>`;
+
+  const base = import.meta.env.VITE_API_URL ?? "";
+  try {
+    const res = await fetch(`${base}/api/packages/${encodeURIComponent(name)}`);
+    if (res.status === 404) {
+      pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-not-found">Package not found.</p>`;
+      return;
+    }
+    if (!res.ok) throw new Error(`Package request failed with HTTP ${res.status}`);
+    const pkg = await res.json();
+    renderPackage(pkg, back);
+  } catch (error) {
+    console.error("Package request failed", error);
+    pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-error">Failed to load package.</p>`;
+  }
+}
+
+function renderPackage(p: any, back: string) {
+  const downloads = p.downloads4w == null ? null : formatNumber(Number(p.downloads4w));
+  const updated = p.updatedAt == null ? null : formatDate(Number(p.updatedAt));
+  const homePage = typeof p.homePage === "string" && /^https?:\/\//.test(p.homePage) ? p.homePage : null;
+  const importNames: string[] = Array.isArray(p.importNames) ? p.importNames : [];
+  const classifiers: string[] = Array.isArray(p.classifiers) ? p.classifiers : [];
+  const keywords: string[] = (typeof p.keywords === "string" ? p.keywords : "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+
+  const stats =
+    downloads !== null || updated !== null || p.requiresPython != null
+      ? `<div class="pkg-stats">
+          ${downloads !== null ? `<div class="pkg-stat"><span class="label">Downloads (30d)</span><span class="value">${downloads}</span></div>` : ""}
+          ${updated !== null ? `<div class="pkg-stat"><span class="label">Last updated</span><span class="value">${updated}</span></div>` : ""}
+          ${p.requiresPython != null ? `<div class="pkg-stat"><span class="label">Requires Python</span><span class="value">${escapeHtml(p.requiresPython)}</span></div>` : ""}
+        </div>`
+      : "";
+
+  const importSection =
+    importNames.length > 0
+      ? `<div class="pkg-imports"><span class="label">Import names</span>${importNames
+          .map((n) => `<code class="import">${escapeHtml(n)}</code>`)
+          .join("")}</div>`
+      : "";
+
+  const keywordSection =
+    keywords.length > 0
+      ? `<div class="pkg-keywords"><span class="label">Keywords</span>${keywords
+          .map((k) => `<span class="tag">${escapeHtml(k)}</span>`)
+          .join("")}</div>`
+      : "";
+
+  const description =
+    typeof p.description === "string" && p.description.trim()
+      ? `<div class="pkg-desc"><h3>Description</h3><pre>${escapeHtml(p.description)}</pre></div>`
+      : "";
+
+  const metaRows: string[] = [];
+  if (p.author != null) metaRows.push(metaRow("Author", escapeHtml(p.author)));
+  if (p.license != null) metaRows.push(metaRow("License", escapeHtml(p.license)));
+  if (homePage) metaRows.push(`<div class="meta-row"><dt>Home page</dt><dd><a href="${escapeHtml(homePage)}" target="_blank" rel="noopener noreferrer">${escapeHtml(homePage)}</a></dd></div>`);
+
+  const meta =
+    metaRows.length > 0
+      ? `<dl class="pkg-meta">${metaRows.join("")}</dl>`
+      : "";
+
+  const classifiersSection =
+    classifiers.length > 0
+      ? `<details class="pkg-classifiers"><summary>Classifiers (${classifiers.length})</summary><ul>${classifiers
+          .map((c) => `<li>${escapeHtml(c)}</li>`)
+          .join("")}</ul></details>`
+      : "";
+
+  const external =
+    `<div class="pkg-external"><a href="https://pypi.org/project/${encodeURIComponent(p.name ?? "")}/" target="_blank" rel="noopener noreferrer">View on PyPI &nearr;</a></div>`;
+
+  pkgEl.innerHTML = `${back}
+    <h2 class="pkg-title">${escapeHtml(p.name ?? "")}${p.version != null ? `<span class="pkg-version">${escapeHtml(p.version)}</span>` : ""}</h2>
+    ${p.summary != null && p.summary.trim() ? `<p class="pkg-summary">${escapeHtml(p.summary)}</p>` : ""}
+    ${importSection}
+    ${stats}
+    ${keywordSection}
+    ${description}
+    ${meta}
+    ${classifiersSection}
+    ${external}`;
+}
+
+function metaRow(label: string, value: string): string {
+  return `<div class="meta-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`;
+}
+
+function formatNumber(n: number): string {
+  return new Intl.NumberFormat("en-US").format(n);
+}
+
+function formatDate(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -159,3 +324,5 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+route();
