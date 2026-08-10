@@ -1,5 +1,5 @@
 import { desc, eq, like, or, sql } from "drizzle-orm";
-import { packages } from "./schema";
+import { packages } from "../db/schema";
 import type { Db } from "./db";
 
 type SearchRow = {

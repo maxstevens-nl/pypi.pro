@@ -1,3 +1,4 @@
+import { Resource } from "sst";
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
@@ -6,8 +7,8 @@ export default defineConfig({
   dialect: "sqlite",
   driver: "d1-http",
   dbCredentials: {
-    accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
-    databaseId: process.env.CLOUDFLARE_DATABASE_ID!,
-    token: process.env.CLOUDFLARE_D1_TOKEN!,
+    accountId: Resource.Database.accountId,
+    databaseId: Resource.Database.databaseId,
+    token: Resource.Database.token,
   },
 });

@@ -17,4 +17,5 @@ export const web = new sst.cloudflare.StaticSiteV2("Web", {
   },
 });
 
-export const webScriptName = web.nodes.server!.nodes.worker.scriptName;
+export const webScriptName = web.nodes.server?.nodes.worker.scriptName;
+

@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, defineRelations } from "drizzle-orm";
 import { text, integer, sqliteTable, index } from "drizzle-orm/sqlite-core";
 
 export const packages = sqliteTable(
@@ -25,5 +25,4 @@ export const packages = sqliteTable(
   ],
 );
 
-export type Package = typeof packages.$inferSelect;
-export type NewPackage = typeof packages.$inferInsert;
+export const relations = defineRelations({ packages });

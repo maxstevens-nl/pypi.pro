@@ -12,17 +12,17 @@ const migrationsHash = createHash("sha256")
   )
   .digest("hex");
 
+const drizzleConfigHash = createHash("sha256")
+  .update(readFileSync("drizzle.config.ts", "utf8"))
+  .digest("hex");
+
 export const migrate = new local.Command(
   "MigrateDb",
   {
-    create: "bun ./packages/api/migrate.ts",
-    update: "bun ./packages/api/migrate.ts",
+    create: "bun run db migrate",
+    update: "bun run db migrate",
     dir: process.cwd(),
-    environment: {
-      DATABASE_URL: database.properties.connectionString,
-      SST_STAGE: $app.stage,
-    },
-    triggers: [database.properties.connectionString, migrationsHash],
+    triggers: [database, migrationsHash, drizzleConfigHash],
   },
   { dependsOn: [database] },
 );

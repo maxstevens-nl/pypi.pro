@@ -9,14 +9,7 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.app.json",
     "lint": "oxlint",
-    "db:seed:local": "bun scripts/seed-local.ts",
-    "db:seed:snapshot": "bun scripts/seed-snapshot.ts",
-    "db:seed:bigquery": "bun scripts/seed-bigquery.ts",
-    "db:enable-lakebase": "bun scripts/enable-lakebase.ts",
-    "detect:imports": "bun scripts/detect-import-name.ts",
-    "detect:imports:snapshot": "bun scripts/detect-import-name-snapshot.ts",
-    "db:migrate": "bun packages/api/migrate.ts",
-    "db:generate": "drizzle-kit generate --dialect=sqlite --schema=packages/db/schema.ts --out=./drizzle"
+    "db": "sst shell drizzle-kit"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

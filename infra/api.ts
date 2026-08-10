@@ -6,9 +6,7 @@ export const searchApi = new sst.cloudflare.Worker(
   {
     handler: "packages/api/worker.ts",
     url: true,
-    environment: {
-      DATABASE_URL: database.properties.connectionString,
-    },
+    link: [database],
     compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
     placement: {
       region: "aws:eu-central-1",
@@ -21,11 +19,9 @@ export const searchApi = new sst.cloudflare.Worker(
   },
   { dependsOn: [migrate] },
 );
-
 export const searchScriptName = searchApi.nodes.worker.scriptName;
 
 const gcpKey = new sst.Secret("GcpServiceAccountKey");
-
 const gcpConfig = new sst.Linkable("GcpConfig", {
   properties: {
     project: process.env.GOOGLE_PROJECT!,
@@ -38,10 +34,7 @@ new sst.cloudflare.Cron(
     schedules: ["0 7 * * *"],
     worker: {
       handler: "packages/api/cron.ts",
-      link: [gcpKey, gcpConfig],
-      environment: {
-        DATABASE_URL: database.properties.connectionString,
-      },
+      link: [database, gcpKey, gcpConfig],
       compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
     },
   },

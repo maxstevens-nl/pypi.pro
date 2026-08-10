@@ -7,7 +7,12 @@
 declare module "sst" {
   export interface Resource {
     "DailyRefreshHandler": import("@cloudflare/workers-types").Service
-    "Database": import("@cloudflare/workers-types").Hyperdrive
+    "Database": {
+      "accountId": string
+      "databaseId": string
+      "token": string
+      "type": "sst.cloudflare.D1"
+    }
     "GcpConfig": {
       "project": string
       "type": "sst.sst.Linkable"
@@ -15,15 +20,6 @@ declare module "sst" {
     "GcpServiceAccountKey": {
       "type": "sst.sst.Secret"
       "value": string
-    }
-    "NeonDatabase": {
-      "connectionString": string
-      "host": string
-      "name": string
-      "password": string
-      "port": number
-      "type": "sst.sst.Linkable"
-      "user": string
     }
     "Search": import("@cloudflare/workers-types").Service
     "Urls": {

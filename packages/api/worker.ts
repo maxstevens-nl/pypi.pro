@@ -1,9 +1,8 @@
 import { search } from "./search";
 import { getPackage } from "./package";
-import { getDb } from "./db";
 
 export default {
-  async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(req: Request, env: Env): Promise<Response> {
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
     const url = new URL(req.url);
@@ -25,8 +24,6 @@ export default {
 
       if (url.pathname === "/api/search") {
         response = await handleSearch(url, requestId, env);
-      } else if (url.pathname.startsWith("/api/packages/")) {
-        response = await handlePackage(url, requestId, env);
       } else if (url.pathname.startsWith("/api/")) {
         response = new Response(JSON.stringify({ error: "not found" }), {
           status: 404,
@@ -105,48 +102,6 @@ async function handleSearch(url: URL, requestId: string, env: Env): Promise<Resp
         event: "search_query_failed",
         requestId,
         query: q,
-        connection: "d1",
-        ...errorDetails(error),
-      }),
-    );
-    throw error;
-  }
-}
-
-async function handlePackage(url: URL, requestId: string, env: Env): Promise<Response> {
-  const name = decodeURIComponent(url.pathname.slice("/api/packages/".length));
-
-  const headers = new Headers({
-    "content-type": "application/json",
-    "access-control-allow-origin": "*",
-    "cache-control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=300",
-  });
-  headers.set("x-request-id", requestId);
-
-  if (!name) {
-    return new Response(JSON.stringify({ error: "missing package name" }), {
-      status: 400,
-      headers,
-    });
-  }
-
-  try {
-    const db = getDb(env);
-    const pkg = await getPackage(db, name);
-    if (!pkg) {
-      return new Response(JSON.stringify({ error: "package not found" }), {
-        status: 404,
-        headers,
-      });
-    }
-    return new Response(JSON.stringify(pkg), { headers });
-  } catch (error) {
-    console.log(
-      JSON.stringify({
-        level: "error",
-        event: "package_query_failed",
-        requestId,
-        package: name,
         connection: "d1",
         ...errorDetails(error),
       }),
