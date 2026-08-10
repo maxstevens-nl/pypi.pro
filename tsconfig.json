@@ -13,5 +13,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["infra/**/*", "sst.config.ts", "sst-env.d.ts", "scripts/**/*", "drizzle.config.ts"],
-  "exclude": ["node_modules", "dist", "packages"]
+  "exclude": ["node_modules", "dist", "packages/web"]
 }

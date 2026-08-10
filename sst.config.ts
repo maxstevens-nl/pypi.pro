@@ -6,7 +6,6 @@ export default $config({
       name: "pypi-pro",
       removal: input?.stage === "prod" ? "retain" : "remove",
       home: "cloudflare",
-      providers: { neon: "0.13.0" },
     };
   },
   async run() {

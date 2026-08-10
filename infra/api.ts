@@ -21,22 +21,22 @@ export const searchApi = new sst.cloudflare.Worker(
 );
 export const searchScriptName = searchApi.nodes.worker.scriptName;
 
-const gcpKey = new sst.Secret("GcpServiceAccountKey");
-const gcpConfig = new sst.Linkable("GcpConfig", {
-  properties: {
-    project: process.env.GOOGLE_PROJECT!,
-  },
-});
-
-new sst.cloudflare.Cron(
-  "DailyRefresh",
-  {
-    schedules: ["0 7 * * *"],
-    worker: {
-      handler: "packages/api/cron.ts",
-      link: [database, gcpKey, gcpConfig],
-      compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
-    },
-  },
-  { dependsOn: [migrate] },
-);
+// const gcpKey = new sst.Secret("GcpServiceAccountKey");
+// const gcpConfig = new sst.Linkable("GcpConfig", {
+//   properties: {
+//     project: process.env.GOOGLE_PROJECT!,
+//   },
+// });
+//
+// new sst.cloudflare.Cron(
+//   "DailyRefresh",
+//   {
+//     schedules: ["0 7 * * *"],
+//     worker: {
+//       handler: "packages/api/cron.ts",
+//       link: [database, gcpKey, gcpConfig],
+//       compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
+//     },
+//   },
+//   { dependsOn: [migrate] },
+// );

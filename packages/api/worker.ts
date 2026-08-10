@@ -1,8 +1,7 @@
 import { search } from "./search";
-import { getPackage } from "./package";
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request): Promise<Response> {
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
     const url = new URL(req.url);
@@ -23,7 +22,7 @@ export default {
       let response: Response;
 
       if (url.pathname === "/api/search") {
-        response = await handleSearch(url, requestId, env);
+        response = await handleSearch(url, requestId);
       } else if (url.pathname.startsWith("/api/")) {
         response = new Response(JSON.stringify({ error: "not found" }), {
           status: 404,
@@ -34,9 +33,11 @@ export default {
           new URL(`/?${url.searchParams.toString()}`, url.origin).toString(),
           301,
         );
-      } else if (env.ASSETS) {
-        response = await env.ASSETS.fetch(req);
-      } else {
+      }
+      // else if (env.ASSETS) {
+      //   response = await env.ASSETS.fetch(req);
+      // }
+      else {
         response = new Response("not found", { status: 404 });
       }
 
@@ -75,7 +76,7 @@ export default {
   },
 };
 
-async function handleSearch(url: URL, requestId: string, env: Env): Promise<Response> {
+async function handleSearch(url: URL, requestId: string): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
 
   const headers = new Headers({
@@ -90,7 +91,7 @@ async function handleSearch(url: URL, requestId: string, env: Env): Promise<Resp
   }
 
   try {
-    const db = getDb(env);
+    const db = await import("./db");
     const result = await search(db, q);
 
     headers.set("x-request-id", requestId);

@@ -6,20 +6,11 @@
 
 declare module "sst" {
   export interface Resource {
-    "DailyRefreshHandler": import("@cloudflare/workers-types").Service
     "Database": {
       "accountId": string
       "databaseId": string
       "token": string
       "type": "sst.cloudflare.D1"
-    }
-    "GcpConfig": {
-      "project": string
-      "type": "sst.sst.Linkable"
-    }
-    "GcpServiceAccountKey": {
-      "type": "sst.sst.Secret"
-      "value": string
     }
     "Search": import("@cloudflare/workers-types").Service
     "Urls": {
