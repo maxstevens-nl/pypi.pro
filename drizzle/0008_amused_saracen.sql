@@ -1,2 +1,0 @@
-ALTER TABLE "packages" ADD COLUMN "normalized_name" text GENERATED ALWAYS AS (lower(regexp_replace(coalesce(name, ''), '[-_.]+', '-', 'g'))) STORED;--> statement-breakpoint
-CREATE INDEX "idx_packages_normalized_name" ON "packages" USING btree ("normalized_name");

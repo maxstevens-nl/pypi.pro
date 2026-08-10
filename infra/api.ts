@@ -1,22 +1,26 @@
 import { database } from "./database";
 import { migrate } from "./migrate";
 
-export const searchApi = new sst.cloudflare.Worker("Search", {
-  handler: "src/worker.ts",
-  url: true,
-  environment: {
-    DATABASE_URL: database.properties.connectionString,
-  },
-  compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
-  placement: {
-    region: "aws:eu-central-1",
-  },
-  transform: {
-    worker: {
-      observability: { enabled: true },
+export const searchApi = new sst.cloudflare.Worker(
+  "Search",
+  {
+    handler: "packages/api/worker.ts",
+    url: true,
+    environment: {
+      DATABASE_URL: database.properties.connectionString,
+    },
+    compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
+    placement: {
+      region: "aws:eu-central-1",
+    },
+    transform: {
+      worker: {
+        observability: { enabled: true },
+      },
     },
   },
-}, { dependsOn: [migrate] });
+  { dependsOn: [migrate] },
+);
 
 export const searchScriptName = searchApi.nodes.worker.scriptName;
 
@@ -28,14 +32,18 @@ const gcpConfig = new sst.Linkable("GcpConfig", {
   },
 });
 
-new sst.cloudflare.Cron("DailyRefresh", {
-  schedules: ["0 7 * * *"],
-  worker: {
-    handler: "src/cron.ts",
-    link: [gcpKey, gcpConfig],
-    environment: {
-      DATABASE_URL: database.properties.connectionString,
+new sst.cloudflare.Cron(
+  "DailyRefresh",
+  {
+    schedules: ["0 7 * * *"],
+    worker: {
+      handler: "packages/api/cron.ts",
+      link: [gcpKey, gcpConfig],
+      environment: {
+        DATABASE_URL: database.properties.connectionString,
+      },
+      compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
     },
-    compatibility: { date: "2026-06-01", flags: ["nodejs_compat"] },
   },
-}, { dependsOn: [migrate] });
+  { dependsOn: [migrate] },
+);

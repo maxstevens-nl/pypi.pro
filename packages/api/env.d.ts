@@ -1,5 +1,5 @@
 interface Env {
-  DATABASE_URL: string;
+  DB: D1Database;
   ASSETS?: Fetcher;
   MODE?: string;
 }

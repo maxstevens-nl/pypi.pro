@@ -1,5 +1,4 @@
 import { BigQuery } from "cfw-bq";
-import { Client } from "pg";
 import { Resource } from "sst";
 import { upsertPackages, type PackageMetadata } from "./db/package-upsert";
 
@@ -7,7 +6,7 @@ export default {
   async scheduled(
     _event: ScheduledEvent,
     env: Env,
-    ctx: ExecutionContext,
+    _ctx: ExecutionContext,
   ) {
     const key = JSON.parse(Resource.GcpServiceAccountKey.value);
     const bq = new BigQuery(key, Resource.GcpConfig.project);
@@ -38,16 +37,7 @@ export default {
       QUALIFY ROW_NUMBER() OVER (PARTITION BY name ORDER BY upload_time DESC) = 1
     `);
 
-    const client = new Client({
-      connectionString: env.DATABASE_URL,
-    });
-    await client.connect();
-
-    try {
-      await upsertPackages(client, rows);
-      console.log(`Upserted ${rows.length} packages.`);
-    } finally {
-      ctx.waitUntil(client.end());
-    }
+    await upsertPackages(env.DB, rows);
+    console.log(`Upserted ${rows.length} packages.`);
   },
 };

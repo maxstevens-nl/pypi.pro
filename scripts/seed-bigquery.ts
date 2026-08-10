@@ -1,10 +1,7 @@
 import { Resource } from "sst";
 import { BigQuery, type Job } from "@google-cloud/bigquery";
 import pg from "pg";
-import {
-  copyUpsertPackages,
-  type PackageMetadata,
-} from "../src/db/package-upsert";
+import { copyUpsertPackages, type PackageMetadata } from "../packages/api/db/package-upsert";
 
 const DATABASE_URL = Resource.NeonDatabase.connectionString;
 const GOOGLE_PROJECT = process.env.GOOGLE_PROJECT;
@@ -68,10 +65,7 @@ async function connectDatabase(): Promise<pg.Client> {
   return client;
 }
 
-async function copyPageWithRetry(
-  client: pg.Client,
-  rows: PackageMetadata[],
-): Promise<pg.Client> {
+async function copyPageWithRetry(client: pg.Client, rows: PackageMetadata[]): Promise<pg.Client> {
   for (let attempt = 1; attempt <= MAX_INSERT_ATTEMPTS; attempt++) {
     try {
       await copyUpsertPackages(client, rows);

@@ -1,6 +1,6 @@
 import { search } from "./search";
 import { getPackage } from "./package";
-import { getNeonHttpDb } from "./db";
+import { getDb } from "./db";
 
 export default {
   async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -62,7 +62,7 @@ export default {
           requestId,
           path: url.pathname,
           query: url.searchParams.get("q"),
-          connection: "neon-http",
+          connection: "d1",
           ...errorDetails(error),
           duration,
         }),
@@ -93,7 +93,7 @@ async function handleSearch(url: URL, requestId: string, env: Env): Promise<Resp
   }
 
   try {
-    const db = getNeonHttpDb(env);
+    const db = getDb(env);
     const result = await search(db, q);
 
     headers.set("x-request-id", requestId);
@@ -105,7 +105,7 @@ async function handleSearch(url: URL, requestId: string, env: Env): Promise<Resp
         event: "search_query_failed",
         requestId,
         query: q,
-        connection: "neon-http",
+        connection: "d1",
         ...errorDetails(error),
       }),
     );
@@ -131,7 +131,7 @@ async function handlePackage(url: URL, requestId: string, env: Env): Promise<Res
   }
 
   try {
-    const db = getNeonHttpDb(env);
+    const db = getDb(env);
     const pkg = await getPackage(db, name);
     if (!pkg) {
       return new Response(JSON.stringify({ error: "package not found" }), {
@@ -147,7 +147,7 @@ async function handlePackage(url: URL, requestId: string, env: Env): Promise<Res
         event: "package_query_failed",
         requestId,
         package: name,
-        connection: "neon-http",
+        connection: "d1",
         ...errorDetails(error),
       }),
     );

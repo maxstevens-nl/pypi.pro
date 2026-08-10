@@ -15,8 +15,8 @@ const migrationsHash = createHash("sha256")
 export const migrate = new local.Command(
   "MigrateDb",
   {
-    create: "bun ./src/migrate.ts",
-    update: "bun ./src/migrate.ts",
+    create: "bun ./packages/api/migrate.ts",
+    update: "bun ./packages/api/migrate.ts",
     dir: process.cwd(),
     environment: {
       DATABASE_URL: database.properties.connectionString,
