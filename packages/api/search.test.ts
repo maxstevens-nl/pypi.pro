@@ -1,107 +1,134 @@
 import { describe, expect, test } from "bun:test";
 import { SQLiteDialect } from "drizzle-orm/sqlite-core";
+import type { SQL } from "drizzle-orm";
 import { search } from "./search";
 import type { Db } from "./db";
 
 describe("search", () => {
   const dialect = new SQLiteDialect();
 
-  function mockDb<T extends unknown[]>(...results: T[]) {
-    const selectCalls: { where?: unknown; orderBy?: unknown[]; limit?: unknown }[] = [];
-    let resultIndex = 0;
-
-    function builder() {
-      const chain = {
-        from() {
-          return chain;
-        },
-        where(where: unknown) {
-          selectCalls[resultIndex] = { ...selectCalls[resultIndex], where };
-          return chain;
-        },
-        orderBy(...orderBy: unknown[]) {
-          selectCalls[resultIndex] = { ...selectCalls[resultIndex], orderBy };
-          return chain;
-        },
-        limit(limit: unknown) {
-          selectCalls[resultIndex] = { ...selectCalls[resultIndex], limit };
-          resultIndex += 1;
-          return Promise.resolve(results[resultIndex - 1] ?? []);
-        },
-      };
-      return chain;
-    }
+  function mockDb(resultSets: unknown[][]) {
+    const allCalls: SQL[] = [];
+    let callIndex = 0;
 
     const db = {
-      select() {
-        return builder();
+      all(query: SQL) {
+        allCalls.push(query);
+        return Promise.resolve(resultSets[callIndex++] ?? []);
       },
     } as unknown as Db;
 
-    return { db, selectCalls };
+    return { db, allCalls };
+  }
+
+  function sqlString(sql: SQL): { sql: string; params: unknown[] } {
+    return dialect.sqlToQuery(sql);
   }
 
   test("returns empty hits for empty query", async () => {
-    const { db, selectCalls } = mockDb([]);
+    const { db, allCalls } = mockDb([]);
     const result = await search(db, "");
     expect(result.hits).toEqual([]);
-    expect(selectCalls.length).toBe(0);
+    expect(allCalls.length).toBe(0);
   });
 
-  test("runs one query per search when results fill the page", async () => {
+  test("queries prefix FTS5 table", async () => {
     const rows = Array.from({ length: 20 }, (_, i) => ({
       name: `pkg-${i}`,
       summary: null,
       version: null,
-      downloads4w: i,
-      importNames: null,
+      downloads_4w: i,
+      import_names: null,
     }));
-    const { db, selectCalls } = mockDb(rows);
+    const { db, allCalls } = mockDb([rows]);
     await search(db, "django");
-    expect(selectCalls.length).toBe(1);
+    expect(allCalls.length).toBe(1);
+    const { sql: rendered } = sqlString(allCalls[0]);
+    expect(rendered).toContain("pkg_prefix");
+    expect(rendered).toContain("MATCH");
+    expect(rendered).toContain("rank");
   });
 
-  test("returns typed rows with camelCase import_names mapped to snake_case", async () => {
-    const row = { name: "django", summary: "A web framework", version: "5.0", downloads4w: 123, importNames: ["django"] };
-    const { db } = mockDb([row]);
+  test("uses FTS5 prefix expression with wildcard", async () => {
+    const { db, allCalls } = mockDb([[]]);
+    await search(db, "django");
+    const { params } = sqlString(allCalls[0]);
+    expect(params).toContain('"django"*');
+  });
+
+  test("maps db rows to search hits with camelCase to snake_case", async () => {
+    const row = {
+      name: "django",
+      summary: "A web framework",
+      version: "5.0",
+      downloads_4w: 123,
+      import_names: JSON.stringify(["django"]),
+    };
+    const { db } = mockDb([[row]]);
     const result = await search(db, "django");
     expect(result.hits).toEqual([
       { name: "django", summary: "A web framework", version: "5.0", downloads_4w: 123, import_names: ["django"] },
     ]);
   });
 
-  test("lowercases input before building the query", async () => {
-    const { db, selectCalls } = mockDb([]);
-    await search(db, "DJANGO");
-    const { params } = dialect.sqlToQuery(selectCalls[0].where as never);
-    expect(params).toContain("django");
-  });
-
-  test("normalizes separators in the query before matching", async () => {
-    const { db, selectCalls } = mockDb([]);
+  test("lowercases and normalizes input", async () => {
+    const { db, allCalls } = mockDb([[]]);
     await search(db, "Django_Rest-Framework");
-    const { params } = dialect.sqlToQuery(selectCalls[0].where as never);
-    expect(params).toContain("django-rest-framework");
+    const { params } = sqlString(allCalls[0]);
+    expect(params).toContain('"django-rest-framework"*');
   });
 
-  test("re-ranks by normalized exact match then downloads", async () => {
-    const { db, selectCalls } = mockDb([]);
-    await search(db, "django");
-    const { sql: rendered } = dialect.sqlToQuery(selectCalls[0].where as never);
-    expect(rendered).toContain("normalized_name");
-    expect(rendered).toContain("GLOB");
-    expect(selectCalls[0].limit).toBe(20);
-  });
-
-  test("falls back to a LIKE query when the primary query is short on hits", async () => {
-    const row = { name: "django", summary: "A web framework", version: "5.0", downloads4w: 123, importNames: ["django"] };
-    const { db, selectCalls } = mockDb([], [row]);
+  test("falls back to trigram FTS5 when prefix returns few hits", async () => {
+    const prefixRows = Array.from({ length: 2 }, (_, i) => ({
+      name: `pkg-${i}`,
+      summary: null,
+      version: null,
+      downloads_4w: i,
+      import_names: null,
+    }));
+    const trigramRows = Array.from({ length: 5 }, (_, i) => ({
+      name: `trigram-${i}`,
+      summary: null,
+      version: null,
+      downloads_4w: i,
+      import_names: null,
+    }));
+    const { db, allCalls } = mockDb([prefixRows, trigramRows]);
     const result = await search(db, "django");
-    expect(selectCalls.length).toBe(2);
-    const { sql: rendered } = dialect.sqlToQuery(selectCalls[1].where as never);
-    expect(rendered).toContain("like");
-    expect(result.hits).toEqual([
-      { name: "django", summary: "A web framework", version: "5.0", downloads_4w: 123, import_names: ["django"] },
-    ]);
+    expect(allCalls.length).toBe(2);
+    const { sql: rendered } = sqlString(allCalls[1]);
+    expect(rendered).toContain("pkg_trigram");
+    expect(result.hits.length).toBe(7);
+  });
+
+  test("deduplicates between prefix and trigram results", async () => {
+    const dup = { name: "duplicate", summary: null, version: null, downloads_4w: 10, import_names: null };
+    const prefixRows = [dup];
+    const trigramRows = [dup, {
+      name: "other",
+      summary: null,
+      version: null,
+      downloads_4w: 5,
+      import_names: null,
+    }];
+    const { db } = mockDb([prefixRows, trigramRows]);
+    const result = await search(db, "django");
+    expect(result.hits.length).toBe(2);
+    expect(result.hits[0].name).toBe("duplicate");
+    expect(result.hits[1].name).toBe("other");
+  });
+
+  test("strips special characters from input before FTS5 match", async () => {
+    const { db, allCalls } = mockDb([[]]);
+    await search(db, 'test"query');
+    const { params } = sqlString(allCalls[0]);
+    expect(params).toContain('"testquery"*');
+  });
+
+  test("escapes quotes defensively in FTS5 expression", async () => {
+    const { db, allCalls } = mockDb([[]]);
+    await search(db, 'django~');
+    const { params } = sqlString(allCalls[0]);
+    expect(params).toContain('"django"*');
   });
 });

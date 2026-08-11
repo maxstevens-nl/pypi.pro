@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
-import { text, integer, sqliteTable, index } from "drizzle-orm/sqlite-core";
+import { text, pgTable, index, bigint } from "drizzle-orm/pg-core";
 
-export const packages = sqliteTable(
+export const packages = pgTable(
   "packages",
   {
     name: text("name").primaryKey(),
@@ -9,14 +9,14 @@ export const packages = sqliteTable(
     description: text("description"),
     author: text("author"),
     license: text("license"),
-    classifiers: text("classifiers", { mode: "json" }).$type<string[]>(),
+    classifiers: text("classifiers").array(),
     requiresPython: text("requires_python"),
     keywords: text("keywords"),
     version: text("version"),
     homePage: text("home_page"),
-    updatedAt: integer("updated_at", { mode: "number" }),
-    downloads4w: integer("downloads_4w", { mode: "number" }),
-    importNames: text("import_names", { mode: "json" }).$type<string[]>(),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+    downloads4w: bigint("downloads_4w", { mode: "number" }),
+    importNames: text("import_names").array(),
     normalizedName: text("normalized_name"),
   },
   (t) => [
@@ -24,3 +24,6 @@ export const packages = sqliteTable(
     index("idx_packages_normalized_name").on(t.normalizedName),
   ],
 );
+
+export type Package = typeof packages.$inferSelect;
+export type NewPackage = typeof packages.$inferInsert;

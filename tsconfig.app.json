@@ -12,6 +12,6 @@
     "resolveJsonModule": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["packages/**/*", "test/**/*", "sst-env.d.ts"],
+  "include": ["packages/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist", "packages/web"]
 }

@@ -1,5 +1,4 @@
-import { desc, eq, like, or, sql } from "drizzle-orm";
-import { packages } from "../db/schema";
+import { sql } from "drizzle-orm";
 import type { Db } from "./db";
 
 type SearchRow = {
@@ -12,22 +11,6 @@ type SearchRow = {
 
 const LIMIT = 20;
 
-const searchColumns = {
-  name: packages.name,
-  summary: packages.summary,
-  version: packages.version,
-  downloads4w: packages.downloads4w,
-  importNames: packages.importNames,
-};
-
-type SearchHit = {
-  name: string;
-  summary: string | null;
-  version: string | null;
-  downloads4w: number | null;
-  importNames: string[] | null;
-};
-
 function normalizeQuery(q: string): string {
   return q
     .trim()
@@ -37,58 +20,77 @@ function normalizeQuery(q: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function ftsPrefixExpression(term: string): string {
+  const escaped = term.replace(/"/g, '""');
+  return `"${escaped}"*`;
+}
+
+function ftsTrigramExpression(term: string): string {
+  const escaped = term.replace(/"/g, '""');
+  return `"${escaped}"`;
+}
+
+interface DbRow {
+  name: string;
+  summary: string | null;
+  version: string | null;
+  downloads_4w: number | null;
+  import_names: string | null;
+}
+
+function toHit(row: unknown): SearchRow {
+  const r = row as DbRow;
+  let importNames: string[] | null = null;
+  if (typeof r.import_names === "string") {
+    try { importNames = JSON.parse(r.import_names); } catch { importNames = null; }
+  }
+  return {
+    name: r.name,
+    summary: r.summary,
+    version: r.version,
+    downloads_4w: r.downloads_4w,
+    import_names: importNames,
+  };
+}
+
 export async function search(db: Db, q: string) {
   const normalized = normalizeQuery(q);
   if (!normalized) return { hits: [] };
 
-  const rank = sql<number>`CASE WHEN ${packages.normalizedName} = ${normalized} THEN 0 ELSE 1 END`;
+  const results = await db.all<DbRow>(
+    sql`
+      SELECT p.name, p.summary, p.version, p.downloads_4w, p.import_names
+      FROM pkg_prefix fts
+      JOIN packages p ON p.rowid = fts.rowid
+      WHERE pkg_prefix MATCH ${ftsPrefixExpression(normalized)}
+      ORDER BY rank
+      LIMIT ${LIMIT}
+    `,
+  );
 
-  const primaryRows = await db
-    .select(searchColumns)
-    .from(packages)
-    .where(
-      or(
-        eq(packages.normalizedName, normalized),
-        sql`lower(${packages.name}) GLOB ${normalized + "*"}`,
-      ),
-    )
-    .orderBy(rank, desc(packages.downloads4w), sql`length(${packages.name})`, packages.name)
-    .limit(LIMIT);
+  const hits = results.map(toHit);
+  const seen = new Set(hits.map((h) => h.name));
 
-  const hits = primaryRows.map(toHit);
-  const seen = new Set(hits.map((row) => row.name));
+  if (hits.length < LIMIT) {
+    const fallback = await db.all<DbRow>(
+      sql`
+        SELECT p.name, p.summary, p.version, p.downloads_4w, p.import_names
+        FROM pkg_trigram fts
+        JOIN packages p ON p.rowid = fts.rowid
+        WHERE pkg_trigram MATCH ${ftsTrigramExpression(normalized)}
+        ORDER BY rank
+        LIMIT ${LIMIT}
+      `,
+    );
 
-  if (hits.length < LIMIT && normalized.length >= 3) {
-    const underscored = normalized.replace(/-/g, "_");
-    const fallbackRows = await db
-      .select(searchColumns)
-      .from(packages)
-      .where(
-        or(
-          like(packages.name, `%${normalized}%`),
-          like(packages.importNames, `%"${normalized}%`),
-          like(packages.importNames, `%"${underscored}%`),
-        ),
-      )
-      .orderBy(desc(packages.downloads4w))
-      .limit(LIMIT * 2);
-    for (const raw of fallbackRows) {
+    for (const row of fallback) {
       if (hits.length >= LIMIT) break;
-      if (seen.has(raw.name)) continue;
-      seen.add(raw.name);
-      hits.push(toHit(raw));
+      const hit = toHit(row);
+      if (seen.has(hit.name)) continue;
+      seen.add(hit.name);
+      hits.push(hit);
     }
   }
 
   return { hits };
-}
-
-function toHit(row: SearchHit): SearchRow {
-  return {
-    name: row.name,
-    summary: row.summary,
-    version: row.version,
-    downloads_4w: row.downloads4w,
-    import_names: row.importNames,
-  };
 }
