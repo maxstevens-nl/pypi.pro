@@ -1,9 +1,34 @@
 {
-  "id": "ce90c77e-200e-4921-92af-6386aabbf19f",
+  "id": "eeb0ed0c-3275-460d-b7f4-416efc806427",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.last_sync": {
+      "name": "last_sync",
+      "schema": "",
+      "columns": {
+        "service": {
+          "name": "service",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_sync": {
+          "name": "last_sync",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.packages": {
       "name": "packages",
       "schema": "",

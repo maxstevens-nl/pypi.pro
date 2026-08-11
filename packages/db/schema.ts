@@ -1,4 +1,4 @@
-import { pgTable, text, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, bigint, integer } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const packages = pgTable("packages", {
@@ -18,4 +18,9 @@ export const packages = pgTable("packages", {
     sql`lower(regexp_replace(COALESCE(name, ''::text), '[-_.]+'::text, '-'::text, 'g'::text))`,
   ),
   importNames: text("import_names").array(),
+});
+
+export const lastSync = pgTable("last_sync", {
+  service: text().primaryKey().notNull(),
+  lastSync: integer("last_sync").notNull(),
 });
