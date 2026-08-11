@@ -6,9 +6,6 @@
     "dev": "vite",
     "build": "vite build"
   },
-  "dependencies": {
-    "typesense-ts": "^0.2.6"
-  },
   "devDependencies": {
     "typescript": "^7.0.2",
     "vite": "^8.1.5"

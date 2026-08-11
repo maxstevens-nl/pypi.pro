@@ -1,29 +1,3 @@
-import { setDefaultConfiguration, collection } from "typesense-ts";
-
-setDefaultConfiguration({
-  apiKey: "9rwcbkpgygdsarm2z6db9x9eh7elb5kk",
-  nodes: [{ url: "https://typesense-production-f140.up.railway.app" }],
-});
-
-const packagesSchema = collection({
-  name: "books",
-  fields: [
-    { name: "title", type: "string" },
-    { name: "authors", type: "string[]" },
-    { name: "publication_year", type: "int32", sort: true },
-    { name: "ratings_count", type: "int32", facet: true },
-    { name: "average_rating", type: "float", facet: true },
-    { name: "categories", type: "string[]", facet: true },
-  ],
-  default_sorting_field: "publication_year",
-});
-
-declare module "typesense-ts" {
-  interface Collections {
-    packages: typeof packagesSchema.schema;
-  }
-}
-
 const input = document.querySelector<HTMLInputElement>("#q")!;
 const list = document.querySelector<HTMLUListElement>("#results")!;
 const pkgEl = document.querySelector<HTMLDivElement>("#package")!;
@@ -143,15 +117,16 @@ async function startSearch(q: string) {
 
   const base = import.meta.env.VITE_API_URL ?? "";
   try {
-    const searchResults = await packagesSchema.search({
-      q,
-      per_page: 20,
-      signal: controller.signal,
-    });
+    const res = await fetch(
+      `https://typesense-production-f140.up.railway.app/collections/packages/documents/search?q=${encodeURIComponent(q)}&query_by=normalized_name`,
+      {
+        headers: {
+          "X-TYPESENSE-API-KEY": "9rwcbkpgygdsarm2z6db9x9eh7elb5kk",
+        },
+        signal: controller.signal,
+      },
+    );
 
-    const res = await fetch(`${base}/api/search?q=${encodeURIComponent(q)}`, {
-      signal: controller.signal,
-    });
     if (!res.ok) throw new Error(`Search request failed with HTTP ${res.status}`);
     if (token < lastRenderedToken) return;
     const { hits } = await res.json();
@@ -218,26 +193,28 @@ function resultHref(name: string): string {
 
 function renderResults(hits: any[]) {
   list.innerHTML = hits
-    .map(
-      (h: any) =>
-        `<li>
-      <a href="${resultHref(h.name ?? "")}">
+    .map((h: any) => {
+      const doc = h.document ?? {};
+      const nameSnippet = h.highlight?.normalized_name?.snippet;
+      const name = nameSnippet ?? escapeHtml(doc.name ?? "");
+      return `<li>
+      <a href="${resultHref(doc.name ?? "")}">
         <div class="name-row">
-          <strong>${escapeHtml(h.name ?? "")}</strong>
+          <strong>${name}</strong>
           ${
-            Array.isArray(h.import_names) && h.import_names.length > 0
-              ? h.import_names
+            Array.isArray(doc.import_names) && doc.import_names.length > 0
+              ? doc.import_names
                   .map((n: string) => `<code class="import">${escapeHtml(n)}</code>`)
                   .join("")
               : ""
           }
         </div>
         <div class="meta">
-          <span>${escapeHtml(h.summary ?? "")}</span>
+          <span>${escapeHtml(doc.summary ?? "")}</span>
         </div>
       </a>
-    </li>`,
-    )
+    </li>`;
+    })
     .join("");
 }
 
