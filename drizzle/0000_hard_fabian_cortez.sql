@@ -1,3 +1,6 @@
+-- Current sql file was generated after introspecting the database
+-- If you want to run this migration please uncomment this code before executing migrations
+/*
 CREATE TABLE `packages` (
 	`name` text PRIMARY KEY,
 	`summary` text,
@@ -15,5 +18,6 @@ CREATE TABLE `packages` (
 	`normalized_name` text
 );
 --> statement-breakpoint
-CREATE INDEX `idx_packages_name_lower_pattern` ON `packages` (lower("name"));--> statement-breakpoint
-CREATE INDEX `idx_packages_normalized_name` ON `packages` (`normalized_name`);
+CREATE INDEX `idx_packages_normalized_name` ON `packages` (`normalized_name`);--> statement-breakpoint
+CREATE INDEX `idx_packages_name_lower_pattern` ON `packages` (``);
+*/
