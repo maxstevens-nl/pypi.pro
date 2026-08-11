@@ -1,4 +1,4 @@
-import { sql, defineRelations } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { text, integer, sqliteTable, index } from "drizzle-orm/sqlite-core";
 
 export const packages = sqliteTable(
@@ -24,5 +24,3 @@ export const packages = sqliteTable(
     index("idx_packages_normalized_name").on(t.normalizedName),
   ],
 );
-
-export const relations = defineRelations({ packages });

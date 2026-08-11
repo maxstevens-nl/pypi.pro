@@ -1,6 +1,4 @@
-import { drizzle } from "drizzle-orm/d1";
-import { Resource } from "sst";
-import { relations } from "../db/schema";
+import type { DrizzleD1Database } from "drizzle-orm/d1";
+import * as schema from "../db/schema";
 
-export const db = drizzle(Resource.Database, { relations });
-export type Db = typeof db;
+export type Db = DrizzleD1Database<typeof schema>;

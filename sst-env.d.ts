@@ -6,12 +6,7 @@
 
 declare module "sst" {
   export interface Resource {
-    "Database": {
-      "accountId": string
-      "databaseId": string
-      "token": string
-      "type": "sst.cloudflare.D1"
-    }
+    "Database": import("@cloudflare/workers-types").D1Database
     "Search": import("@cloudflare/workers-types").Service
     "Urls": {
       "api": string

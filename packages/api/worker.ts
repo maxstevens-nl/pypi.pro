@@ -1,7 +1,15 @@
+import { drizzle } from "drizzle-orm/d1";
 import { search } from "./search";
+import * as schema from "../db/schema";
+import { D1Database } from "@cloudflare/workers-types";
+import { Db } from "./db";
+
+interface Env {
+  Database: D1Database;
+}
 
 export default {
-  async fetch(req: Request): Promise<Response> {
+  async fetch(req: Request, env: Env): Promise<Response> {
     const startTime = Date.now();
     const requestId = crypto.randomUUID();
     const url = new URL(req.url);
@@ -22,7 +30,8 @@ export default {
       let response: Response;
 
       if (url.pathname === "/api/search") {
-        response = await handleSearch(url, requestId);
+        const db = drizzle(env.Database, { schema });
+        response = await handleSearch(url, requestId, db);
       } else if (url.pathname.startsWith("/api/")) {
         response = new Response(JSON.stringify({ error: "not found" }), {
           status: 404,
@@ -76,7 +85,7 @@ export default {
   },
 };
 
-async function handleSearch(url: URL, requestId: string): Promise<Response> {
+async function handleSearch(url: URL, requestId: string, db: Db): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
 
   const headers = new Headers({
@@ -90,25 +99,10 @@ async function handleSearch(url: URL, requestId: string): Promise<Response> {
     return new Response(JSON.stringify({ hits: [] }), { headers });
   }
 
-  try {
-    const db = await import("./db");
-    const result = await search(db, q);
+  const result = await search(db, q);
 
-    headers.set("x-request-id", requestId);
-    return new Response(JSON.stringify(result), { headers });
-  } catch (error) {
-    console.log(
-      JSON.stringify({
-        level: "error",
-        event: "search_query_failed",
-        requestId,
-        query: q,
-        connection: "d1",
-        ...errorDetails(error),
-      }),
-    );
-    throw error;
-  }
+  headers.set("x-request-id", requestId);
+  return new Response(JSON.stringify(result), { headers });
 }
 
 function errorDetails(error: unknown): Record<string, unknown> {
