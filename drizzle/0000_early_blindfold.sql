@@ -18,8 +18,7 @@ CREATE TABLE "packages" (
 	"import_names" text[],
 	"search_tsv" "tsvector" GENERATED ALWAYS AS ((to_tsvector('simple'::regconfig, lower(regexp_replace(COALESCE(name, ''::text), '[-_.]+'::text, '-'::text, 'g'::text))) || to_tsvector('simple'::regconfig, import_names_to_text(import_names)))) STORED
 );
---> statement-breakpoint
-CREATE INDEX "idx_packages_name_lower_pattern" ON "packages" USING btree (lower(name) text_pattern_ops);--> statement-breakpoint
-CREATE INDEX "idx_packages_name_lower_trgm" ON "packages" USING gin (lower(name) gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "idx_packages_name_lower_pattern" ON "packages" USING btree (lower(name) text_pattern_ops);
+CREATE INDEX "idx_packages_name_lower_trgm" ON "packages" USING gin (lower(name) gin_trgm_ops);
 CREATE INDEX "idx_packages_normalized_name" ON "packages" USING btree ("normalized_name" text_ops);
 */
