@@ -1,6 +1,6 @@
 {
-  "id": "00000000-0000-0000-0000-000000000000",
-  "prevId": "",
+  "id": "ce90c77e-200e-4921-92af-6386aabbf19f",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -95,73 +95,14 @@
           "type": "text[]",
           "primaryKey": false,
           "notNull": false
-        },
-        "search_tsv": {
-          "name": "search_tsv",
-          "type": "tsvector",
-          "primaryKey": false,
-          "notNull": false,
-          "generated": {
-            "as": "(to_tsvector('simple'::regconfig, lower(regexp_replace(COALESCE(name, ''::text), '[-_.]+'::text, '-'::text, 'g'::text))) || to_tsvector('simple'::regconfig, import_names_to_text(import_names)))",
-            "type": "stored"
-          }
         }
       },
-      "indexes": {
-        "idx_packages_name_lower_pattern": {
-          "name": "idx_packages_name_lower_pattern",
-          "columns": [
-            {
-              "expression": "lower(name)",
-              "asc": true,
-              "nulls": "last",
-              "opclass": "text_pattern_ops",
-              "isExpression": true
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_packages_name_lower_trgm": {
-          "name": "idx_packages_name_lower_trgm",
-          "columns": [
-            {
-              "expression": "lower(name)",
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops",
-              "isExpression": true
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "idx_packages_normalized_name": {
-          "name": "idx_packages_normalized_name",
-          "columns": [
-            {
-              "expression": "normalized_name",
-              "asc": true,
-              "nulls": "last",
-              "opclass": "text_ops",
-              "isExpression": false
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {},
       "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
@@ -172,26 +113,8 @@
   "policies": {},
   "views": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "internal": {
-    "tables": {
-      "packages": {
-        "columns": {
-          "classifiers": {
-            "isArray": true,
-            "dimensions": 1,
-            "rawType": "text"
-          },
-          "import_names": {
-            "isArray": true,
-            "dimensions": 1,
-            "rawType": "text"
-          }
-        }
-      }
-    }
+    "tables": {}
   }
 }
