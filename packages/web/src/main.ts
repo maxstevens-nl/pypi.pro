@@ -7,6 +7,7 @@ let searchToken = 0;
 let lastRenderedToken = 0;
 const pendingControllers = new Map<number, AbortController>();
 const searchCache = new Map<string, any[]>();
+const packageCache = new Map<string, any>();
 
 input.focus();
 
@@ -191,12 +192,31 @@ function resultHref(name: string): string {
   return q ? `${base}?q=${encodeURIComponent(q)}` : base;
 }
 
+function fromTypesenseDoc(doc: any): any {
+  return {
+    name: doc.name,
+    summary: doc.summary,
+    version: doc.version,
+    homePage: doc.home_page,
+    updatedAt: doc.updated_at,
+    description: doc.description,
+    author: doc.author,
+    license: doc.license,
+    classifiers: doc.classifiers,
+    requiresPython: doc.requires_python,
+    keywords: doc.keywords,
+    downloads4w: doc.downloads_4w,
+    importNames: doc.import_names,
+  };
+}
+
 function renderResults(hits: any[]) {
   list.innerHTML = hits
     .map((h: any) => {
       const doc = h.document ?? {};
       const nameSnippet = h.highlight?.normalized_name?.snippet;
       const name = nameSnippet ?? escapeHtml(doc.name ?? "");
+      if (doc.name) packageCache.set(doc.name, fromTypesenseDoc(doc));
       return `<li>
       <a href="${resultHref(doc.name ?? "")}">
         <div class="name-row">
@@ -226,6 +246,12 @@ async function renderPackagePage(name: string) {
   pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-loading">Loading…</p>`;
 
   const base = import.meta.env.VITE_API_URL ?? "";
+  const cached = packageCache.get(name);
+  if (cached) {
+    renderPackage(cached, back);
+    return;
+  }
+
   try {
     const res = await fetch(`${base}/api/packages/${encodeURIComponent(name)}`);
     if (res.status === 404) {
@@ -234,6 +260,7 @@ async function renderPackagePage(name: string) {
     }
     if (!res.ok) throw new Error(`Package request failed with HTTP ${res.status}`);
     const pkg = await res.json();
+    packageCache.set(name, pkg);
     renderPackage(pkg, back);
   } catch (error) {
     console.error("Package request failed", error);
