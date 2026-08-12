@@ -11,7 +11,7 @@ const packageCache = new Map<string, any>();
 
 input.focus();
 
-const PACKAGE_PATH = /^\/packages\/(.+)$/;
+const PACKAGE_PATH = /^\/project\/(.+)$/;
 
 function currentPackageName(): string | null {
   const match = window.location.pathname.match(PACKAGE_PATH);
@@ -116,7 +116,6 @@ async function startSearch(q: string) {
     return;
   }
 
-  const base = import.meta.env.VITE_API_URL ?? "";
   try {
     const res = await fetch(
       `https://typesense-production-f140.up.railway.app/collections/packages/documents/search?q=${encodeURIComponent(q)}&query_by=normalized_name`,
@@ -188,7 +187,7 @@ function updateSelection(items: NodeListOf<HTMLLIElement>) {
 
 function resultHref(name: string): string {
   const q = input.value.trim();
-  const base = `/packages/${encodeURIComponent(name)}`;
+  const base = `/project/${encodeURIComponent(name)}`;
   return q ? `${base}?q=${encodeURIComponent(q)}` : base;
 }
 
@@ -245,26 +244,10 @@ async function renderPackagePage(name: string) {
 
   pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-loading">Loading…</p>`;
 
-  const base = import.meta.env.VITE_API_URL ?? "";
   const cached = packageCache.get(name);
   if (cached) {
     renderPackage(cached, back);
     return;
-  }
-
-  try {
-    const res = await fetch(`${base}/api/packages/${encodeURIComponent(name)}`);
-    if (res.status === 404) {
-      pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-not-found">Package not found.</p>`;
-      return;
-    }
-    if (!res.ok) throw new Error(`Package request failed with HTTP ${res.status}`);
-    const pkg = await res.json();
-    packageCache.set(name, pkg);
-    renderPackage(pkg, back);
-  } catch (error) {
-    console.error("Package request failed", error);
-    pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-error">Failed to load package.</p>`;
   }
 }
 
