@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --filter '*' dev",
+    "build": "bun run --filter '*' build",
     "db": "drizzle-kit"
   },
   "devDependencies": {
