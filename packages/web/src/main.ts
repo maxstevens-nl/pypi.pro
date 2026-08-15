@@ -96,6 +96,12 @@ document.addEventListener("keydown", (e) => {
       e.preventDefault();
       selectedIndex = Math.max(selectedIndex - 1, -1);
       updateSelection(items);
+    } else if (key === "enter") {
+      const items = list.querySelectorAll("li");
+      if (items.length === 0) return;
+      e.preventDefault();
+      const link = items[selectedIndex >= 0 ? selectedIndex : 0]?.querySelector("a");
+      if (link) (link as HTMLAnchorElement).click();
     }
   }
 });
