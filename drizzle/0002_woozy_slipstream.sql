@@ -1,0 +1,1 @@
+ALTER TABLE "packages" ADD COLUMN "description_content_type" text;

@@ -15,6 +15,20 @@
       "when": 1786485571765,
       "tag": "0001_serious_micromax",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786830112284,
+      "tag": "0002_woozy_slipstream",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786831065790,
+      "tag": "0003_safe_reaper",
+      "breakpoints": true
     }
   ]
 }

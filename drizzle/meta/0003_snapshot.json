@@ -1,0 +1,247 @@
+{
+  "id": "f934fdf9-497c-4fda-b8ee-5def00a95c53",
+  "prevId": "6801da6d-6d14-4eee-8fcd-4858051bf148",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.last_sync": {
+      "name": "last_sync",
+      "schema": "",
+      "columns": {
+        "service": {
+          "name": "service",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_sync": {
+          "name": "last_sync",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.packages": {
+      "name": "packages",
+      "schema": "",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "metadata_version": {
+          "name": "metadata_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "home_page": {
+          "name": "home_page",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "download_url": {
+          "name": "download_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description_content_type": {
+          "name": "description_content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author": {
+          "name": "author",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_email": {
+          "name": "author_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maintainer": {
+          "name": "maintainer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maintainer_email": {
+          "name": "maintainer_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license": {
+          "name": "license",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license_expression": {
+          "name": "license_expression",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license_files": {
+          "name": "license_files",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "classifiers": {
+          "name": "classifiers",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requires_python": {
+          "name": "requires_python",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requires_dist": {
+          "name": "requires_dist",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provides_dist": {
+          "name": "provides_dist",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "obsoletes_dist": {
+          "name": "obsoletes_dist",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requires_external": {
+          "name": "requires_external",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requires": {
+          "name": "requires",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provides": {
+          "name": "provides",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "obsoletes": {
+          "name": "obsoletes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "project_urls": {
+          "name": "project_urls",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "keywords": {
+          "name": "keywords",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "downloads_4w": {
+          "name": "downloads_4w",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "normalized_name": {
+          "name": "normalized_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "lower(regexp_replace(COALESCE(name, ''::text), '[-_.]+'::text, '-'::text, 'g'::text))",
+            "type": "stored"
+          }
+        },
+        "import_names": {
+          "name": "import_names",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
