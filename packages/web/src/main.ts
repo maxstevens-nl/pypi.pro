@@ -9,6 +9,9 @@ const pendingControllers = new Map<number, AbortController>();
 const searchCache = new Map<string, any[]>();
 const packageCache = new Map<string, any>();
 
+const TYPESENSE_URL = import.meta.env.VITE_TYPESENSE_URL;
+const TYPESENSE_API_KEY = import.meta.env.VITE_TYPESENSE_API_KEY;
+
 input.focus();
 
 const PACKAGE_PATH = /^\/project\/(.+)$/;
@@ -58,6 +61,11 @@ document.addEventListener("click", (e) => {
   if (e.defaultPrevented || e.button !== 0) return;
   const target = (e.target as HTMLElement).closest("a");
   if (!target) return;
+  if (target.hasAttribute("data-back")) {
+    e.preventDefault();
+    history.back();
+    return;
+  }
   const url = new URL(target.href, window.location.origin);
   if (url.origin !== window.location.origin) return;
   e.preventDefault();
@@ -118,10 +126,10 @@ async function startSearch(q: string) {
 
   try {
     const res = await fetch(
-      `https://typesense-production-f140.up.railway.app/collections/packages/documents/search?q=${encodeURIComponent(q)}&query_by=normalized_name`,
+      `${TYPESENSE_URL}/collections/packages/documents/search?q=${encodeURIComponent(q)}&query_by=normalized_name`,
       {
         headers: {
-          "X-TYPESENSE-API-KEY": "9rwcbkpgygdsarm2z6db9x9eh7elb5kk",
+          "X-TYPESENSE-API-KEY": TYPESENSE_API_KEY,
         },
         signal: controller.signal,
       },
@@ -186,9 +194,7 @@ function updateSelection(items: NodeListOf<HTMLLIElement>) {
 }
 
 function resultHref(name: string): string {
-  const q = input.value.trim();
-  const base = `/project/${encodeURIComponent(name)}`;
-  return q ? `${base}?q=${encodeURIComponent(q)}` : base;
+  return `/project/${encodeURIComponent(name)}`;
 }
 
 function fromTypesenseDoc(doc: any): any {
@@ -238,9 +244,7 @@ function renderResults(hits: any[]) {
 }
 
 async function renderPackagePage(name: string) {
-  const currentQuery = new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
-  const backHref = currentQuery ? `/?q=${encodeURIComponent(currentQuery)}` : "/";
-  const back = `<a class="pkg-back" href="${backHref}">&larr; Back to search</a>`;
+  const back = `<a class="pkg-back" href="/" data-back>&larr; Back to search</a>`;
 
   pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-loading">Loading…</p>`;
 
@@ -248,6 +252,21 @@ async function renderPackagePage(name: string) {
   if (cached) {
     renderPackage(cached, back);
     return;
+  }
+
+  try {
+    const res = await fetch(
+      `${TYPESENSE_URL}/collections/packages/documents/${encodeURIComponent(name)}`,
+      { headers: { "X-TYPESENSE-API-KEY": TYPESENSE_API_KEY } },
+    );
+    if (!res.ok) throw new Error(`Package request failed with HTTP ${res.status}`);
+    const doc = await res.json();
+    const pkg = fromTypesenseDoc(doc);
+    packageCache.set(name, pkg);
+    renderPackage(pkg, back);
+  } catch (error) {
+    console.error("Package request failed", error);
+    pkgEl.innerHTML = `${back}<h2 class="pkg-title">${escapeHtml(name)}</h2><p class="pkg-loading">Failed to load package.</p>`;
   }
 }
 
