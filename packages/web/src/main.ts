@@ -252,7 +252,8 @@ async function renderPackagePage(name: string) {
 }
 
 function renderPackage(p: any, back: string) {
-  const downloads = p.downloads4w == null ? null : formatNumber(Number(p.downloads4w));
+  const downloads4w = Number(p.downloads4w);
+  const downloads = !downloads4w ? "—" : formatNumber(downloads4w);
   const updated = p.updatedAt == null ? null : formatDate(Number(p.updatedAt));
   const homePage =
     typeof p.homePage === "string" && /^https?:\/\//.test(p.homePage) ? p.homePage : null;
@@ -263,14 +264,11 @@ function renderPackage(p: any, back: string) {
     .map((k) => k.trim())
     .filter(Boolean);
 
-  const stats =
-    downloads !== null || updated !== null || p.requiresPython != null
-      ? `<div class="pkg-stats">
-          ${downloads !== null ? `<div class="pkg-stat"><span class="label">Downloads (30d)</span><span class="value">${downloads}</span></div>` : ""}
+  const stats = `<div class="pkg-stats">
+          <div class="pkg-stat"><span class="label">Downloads (30d)</span><span class="value">${downloads}</span></div>
           ${updated !== null ? `<div class="pkg-stat"><span class="label">Last updated</span><span class="value">${updated}</span></div>` : ""}
           ${p.requiresPython != null ? `<div class="pkg-stat"><span class="label">Requires Python</span><span class="value">${escapeHtml(p.requiresPython)}</span></div>` : ""}
-        </div>`
-      : "";
+        </div>`;
 
   const importSection =
     importNames.length > 0
