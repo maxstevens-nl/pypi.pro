@@ -1,64 +1,74 @@
 function isEdgeNoise(c: number): boolean {
-  return (
-    c <= 32 ||
-    c === 34 /* " */ ||
-    c === 39 /* ' */ ||
-    c === 40 /* ( */ ||
-    c === 41 /* ) */ ||
-    c === 91 /* [ */ ||
-    c === 93 /* ] */ ||
-    c === 123 /* { */ ||
-    c === 125 /* } */
-  );
+  return c <= 32 || c === 34 /* " */ || c === 39 /* ' */;
+}
+
+function stripEdges(s: string): string {
+  let lo = 0;
+  let hi = s.length;
+  while (lo < hi && isEdgeNoise(s.charCodeAt(lo))) lo++;
+  while (hi > lo && isEdgeNoise(s.charCodeAt(hi - 1))) hi--;
+  return s.slice(lo, hi);
 }
 
 export function parseKeywords(keywords: string): string[] {
-  const result: string[] = [];
-  const n = keywords.length;
-  const commaMode = keywords.indexOf(",") !== -1;
+  let s = keywords.trim();
 
-  let i = 0;
-  while (i < n) {
-    // occurs in comma mode; the check is unconditional to keep it cheap.)
-    while (i < n) {
-      const c = keywords.charCodeAt(i);
-      if (c > 32 && c !== 44 /* , */) break;
-      i++;
+  // Drop a single pair of matching quotes or brackets wrapping the whole string.
+  while (s.length >= 2) {
+    const first = s.charCodeAt(0);
+    const last = s.charCodeAt(s.length - 1);
+    const wrapped =
+      (first === 34 && last === 34) ||
+      (first === 39 && last === 39) ||
+      (first === 40 && last === 41) ||
+      (first === 91 && last === 93) ||
+      (first === 123 && last === 125);
+    if (wrapped) {
+      s = s.slice(1, -1).trim();
+    } else {
+      break;
     }
-    if (i >= n) break;
-
-    if (keywords.charCodeAt(i) === 34 /* " */) {
-      // Double-quoted phrase: keep everything up to the closing quote.
-      const quote = i;
-      i++;
-      const start = i;
-      while (i < n && keywords.charCodeAt(i) !== 34 /* " */) i++;
-      if (i < n) {
-        if (i > start) result.push(keywords.slice(start, i));
-        i++; // skip the closing quote
-        continue;
-      }
-      // Unterminated quote: fall through and re-parse as a bare token —
-      // the stray quote is stripped as edge noise.
-      i = quote;
-    }
-
-    // Bare token: consume until the next delimiter (comma, or whitespace
-    // when no comma exists anywhere in the string).
-    const start = i;
-    while (i < n) {
-      const c = keywords.charCodeAt(i);
-      if (commaMode ? c === 44 /* , */ : c <= 32) break;
-      i++;
-    }
-
-    // Strip stray whitespace, quotes, and brackets off both edges.
-    let lo = start;
-    let hi = i;
-    while (lo < hi && isEdgeNoise(keywords.charCodeAt(lo))) lo++;
-    while (hi > lo && isEdgeNoise(keywords.charCodeAt(hi - 1))) hi--;
-
-    if (hi > lo) result.push(keywords.slice(lo, hi));
   }
-  return result;
+
+  if (s.length === 0) return [];
+
+  const tokens: string[] = [];
+  const n = s.length;
+
+  if (s.indexOf(",") !== -1) {
+    let start = 0;
+    for (let i = 0; i <= n; i++) {
+      if (i === n || s.charCodeAt(i) === 44 /* , */) {
+        const token = stripEdges(s.slice(start, i));
+        if (token.length > 0) tokens.push(token);
+        start = i + 1;
+      }
+    }
+  } else {
+    let i = 0;
+    while (i < n) {
+      while (i < n && s.charCodeAt(i) <= 32) i++;
+      if (i >= n) break;
+
+      if (s.charCodeAt(i) === 34 /* " */) {
+        const close = s.indexOf('"', i + 1);
+        if (close === -1) {
+          const token = stripEdges(s.slice(i));
+          if (token.length > 0) tokens.push(token);
+          break;
+        }
+        const token = stripEdges(s.slice(i + 1, close));
+        if (token.length > 0) tokens.push(token);
+        i = close + 1;
+      } else {
+        let j = i;
+        while (j < n && s.charCodeAt(j) > 32) j++;
+        const token = stripEdges(s.slice(i, j));
+        if (token.length > 0) tokens.push(token);
+        i = j;
+      }
+    }
+  }
+
+  return tokens;
 }
