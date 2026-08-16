@@ -28,6 +28,9 @@
     },
     "packages/web": {
       "name": "pipy.pro/web",
+      "dependencies": {
+        "drizzle-orm": "^0.45.2",
+      },
       "devDependencies": {
         "typescript": "^7.0.2",
         "vite": "^8.1.5",
