@@ -1,3 +1,5 @@
+import { parseKeywords } from "./parse-keywords";
+
 const input = document.querySelector<HTMLInputElement>("#q")!;
 const list = document.querySelector<HTMLUListElement>("#results")!;
 const pkgEl = document.querySelector<HTMLDivElement>("#package")!;
@@ -284,10 +286,9 @@ function renderPackage(p: any, back: string) {
     typeof p.homePage === "string" && /^https?:\/\//.test(p.homePage) ? p.homePage : null;
   const importNames: string[] = Array.isArray(p.importNames) ? p.importNames : [];
   const classifiers: string[] = Array.isArray(p.classifiers) ? p.classifiers : [];
-  const keywords: string[] = (typeof p.keywords === "string" ? p.keywords : "")
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean);
+  const keywords: string[] = parseKeywords(
+    typeof p.keywords === "string" ? p.keywords : "",
+  );
 
   const stats = `<div class="pkg-stats">
           <div class="pkg-stat"><span class="label">Downloads (30d)</span><span class="value">${downloads}</span></div>
